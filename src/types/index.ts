@@ -49,6 +49,9 @@ export interface AIConfig {
   ollamaHost?: string;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  contextSize?: number;
+  systemPrompt?: string;
 }
 
 export interface AIMessage {

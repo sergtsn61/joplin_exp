@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   X, Sparkles, Loader2, Save, Copy, Check, ChevronDown, ChevronRight,
   FileText, BookOpen, GraduationCap, ListChecks, HelpCircle, Newspaper,
-  MessageSquare, GitCompare, BookMarked, Plus, Trash2, Send,
+  MessageSquare, GitCompare, BookMarked, Plus, Trash2, Send, SlidersHorizontal,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -38,6 +38,30 @@ interface PromptTemplate {
 }
 
 const TEMPLATES_KEY = 'nc_prompt_templates';
+
+// Rough token estimator: ~3.5 chars per token (mixed RU/EN)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3.5);
+}
+
+// Context window presets by provider/model keyword
+function defaultContextSize(model: string, provider: string): number {
+  if (provider === 'anthropic') return 200000;
+  if (provider === 'openai') {
+    if (model.includes('gpt-4o')) return 128000;
+    if (model.includes('gpt-4-turbo')) return 128000;
+    if (model.includes('gpt-4')) return 8192;
+    if (model.includes('gpt-3.5')) return 16385;
+    return 128000;
+  }
+  if (provider === 'openrouter') return 128000;
+  // Ollama — local models vary widely, default 8k
+  if (model.includes('llama3')) return 8192;
+  if (model.includes('mistral')) return 32768;
+  if (model.includes('qwen')) return 32768;
+  if (model.includes('gemma')) return 8192;
+  return 8192;
+}
 
 function loadTemplates(): PromptTemplate[] {
   try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '[]'); } catch { return []; }
@@ -150,8 +174,30 @@ export function NotebookCompiler({ onClose }: Props) {
   const [newTplName, setNewTplName] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
 
+  // ── AI params (local overrides for this session)
+  const [aiParamsOpen, setAiParamsOpen] = useState(false);
+  const [localSystemPrompt, setLocalSystemPrompt] = useState(settings.ai.systemPrompt ?? '');
+  const [localTemp, setLocalTemp] = useState(settings.ai.temperature ?? 0.7);
+  const [localTopP, setLocalTopP] = useState(settings.ai.topP ?? 1.0);
+  const [localMaxTokens, setLocalMaxTokens] = useState(settings.ai.maxTokens ?? 2048);
+  const [localContextSize, setLocalContextSize] = useState(
+    settings.ai.contextSize ?? defaultContextSize(settings.ai.model, settings.ai.provider)
+  );
+
   const currentOutput = versions[versionIdx]?.content ?? '';
   const prevOutput = versions[versionIdx - 1]?.content ?? '';
+
+  // ── Context fill estimation
+  const contextUsed = useMemo(() => {
+    const selected = notes.filter(n => selectedIds.has(n.id));
+    const corpusText = selected.map(n => n.title + '\n' + (n.body || '')).join('\n\n');
+    const systemText = localSystemPrompt + (customInstructions || '');
+    const historyText = currentOutput; // previous output fed back during refine
+    return estimateTokens(corpusText + systemText + historyText);
+  }, [notes, selectedIds, localSystemPrompt, customInstructions, currentOutput]);
+
+  const contextPct = Math.min(100, Math.round((contextUsed / localContextSize) * 100));
+  const ctxColor = contextPct < 50 ? 'bg-green-500' : contextPct < 80 ? 'bg-yellow-500' : 'bg-red-500';
 
   // Auto-scroll during generation
   useEffect(() => {
@@ -187,16 +233,18 @@ export function NotebookCompiler({ onClose }: Props) {
       ? 'Respond in the same language as the majority of the notes.'
       : `Respond in ${language}.`;
 
-    const systemPrompt = `You are an expert technical writer and knowledge organizer.
-Your task is to synthesize multiple fragmented notes into a single, coherent ${docType.prompt}.
-${langInstruction}
-Rules:
+    const systemPrompt = [
+      localSystemPrompt.trim() ? localSystemPrompt.trim() : `You are an expert technical writer and knowledge organizer.
+Your task is to synthesize multiple fragmented notes into a single, coherent ${docType.prompt}.`,
+      langInstruction,
+      `Rules:
 - Do NOT just concatenate the notes — truly synthesize, reorganize, and rewrite
 - Remove duplicates and redundancies
 - Fill in logical gaps where possible
 - Use proper Markdown formatting with headers, lists, code blocks where appropriate
-- The result must read as a professional, standalone document
-${customInstructions ? `\nAdditional instructions: ${customInstructions}` : ''}`;
+- The result must read as a professional, standalone document`,
+      customInstructions ? `Additional instructions: ${customInstructions}` : '',
+    ].filter(Boolean).join('\n');
 
     const userPrompt = `Here are ${selectedIds.size} notes from the notebook "${notebookName}":\n\n${buildCorpus()}\n\nPlease compose a ${docType.prompt} from all this material.`;
 
@@ -213,7 +261,7 @@ ${customInstructions ? `\nAdditional instructions: ${customInstructions}` : ''}`
     try {
       await aiService.chat(
         [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        settings.ai,
+        { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize },
         (chunk) => {
           if (abortRef.current) return;
           result += chunk;
@@ -260,7 +308,7 @@ Do not add meta-commentary — just return the revised document.`;
     try {
       await aiService.chat(
         [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        settings.ai,
+        { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize },
         (chunk) => {
           if (abortRef.current) return;
           result += chunk;
@@ -506,6 +554,105 @@ Do not add meta-commentary — just return the revised document.`;
                 </div>
               )}
             </div>
+          </div>
+
+          {/* AI Parameters */}
+          <div className="border-t border-gray-800">
+            {/* Context fill bar — always visible */}
+            <div className="px-4 pt-3 pb-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-gray-500">Контекст</span>
+                <span className={`text-xs font-mono font-medium ${
+                  contextPct < 50 ? 'text-green-400' : contextPct < 80 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  ~{contextUsed.toLocaleString()} / {localContextSize.toLocaleString()} токенов ({contextPct}%)
+                </span>
+              </div>
+              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${ctxColor}`} style={{ width: `${contextPct}%` }} />
+              </div>
+            </div>
+
+            {/* Collapsible params */}
+            <button
+              onClick={() => setAiParamsOpen(v => !v)}
+              className="flex items-center gap-2 w-full px-4 py-2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Параметры модели
+              {aiParamsOpen ? <ChevronDown className="w-3 h-3 ml-auto" /> : <ChevronRight className="w-3 h-3 ml-auto" />}
+            </button>
+
+            {aiParamsOpen && (
+              <div className="px-4 pb-3 space-y-3">
+                {/* System prompt */}
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Системный промпт</label>
+                  <textarea
+                    value={localSystemPrompt}
+                    onChange={e => setLocalSystemPrompt(e.target.value)}
+                    placeholder="Оставь пустым — используется встроенный промпт технического редактора"
+                    rows={3}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-600 resize-none"
+                  />
+                </div>
+
+                {/* Temperature */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs text-gray-500">T — Температура</label>
+                    <span className="text-xs font-mono text-purple-300">{localTemp.toFixed(1)}</span>
+                  </div>
+                  <input type="range" min="0" max="2" step="0.1" value={localTemp}
+                    onChange={e => setLocalTemp(parseFloat(e.target.value))}
+                    className="w-full accent-purple-500 h-1.5"
+                  />
+                  <div className="flex justify-between text-xs text-gray-600 mt-0.5">
+                    <span>точный</span><span>творческий</span>
+                  </div>
+                </div>
+
+                {/* Top-P */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs text-gray-500">P — Top-P (nucleus)</label>
+                    <span className="text-xs font-mono text-purple-300">{localTopP.toFixed(2)}</span>
+                  </div>
+                  <input type="range" min="0.01" max="1" step="0.01" value={localTopP}
+                    onChange={e => setLocalTopP(parseFloat(e.target.value))}
+                    className="w-full accent-purple-500 h-1.5"
+                  />
+                  <div className="flex justify-between text-xs text-gray-600 mt-0.5">
+                    <span>фокус</span><span>разнообразие</span>
+                  </div>
+                </div>
+
+                {/* Max output tokens */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs text-gray-500">Max токенов (ответ)</label>
+                    <span className="text-xs font-mono text-purple-300">{localMaxTokens.toLocaleString()}</span>
+                  </div>
+                  <input type="range" min="256" max="16384" step="256" value={localMaxTokens}
+                    onChange={e => setLocalMaxTokens(parseInt(e.target.value))}
+                    className="w-full accent-purple-500 h-1.5"
+                  />
+                </div>
+
+                {/* Context window size */}
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Окно контекста модели</label>
+                  <input
+                    type="number"
+                    min="1024" max="2000000" step="1024"
+                    value={localContextSize}
+                    onChange={e => setLocalContextSize(parseInt(e.target.value) || 8192)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+                  />
+                  <p className="text-xs text-gray-600 mt-0.5">токенов (укажи реальный лимит модели)</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Generate button */}

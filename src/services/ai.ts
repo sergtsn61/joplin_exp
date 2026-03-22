@@ -39,6 +39,7 @@ class AIService {
         messages,
         temperature: config.temperature ?? 0.7,
         max_tokens: config.maxTokens ?? 2048,
+        ...(config.topP !== undefined && { top_p: config.topP }),
         stream: !!onChunk,
       }),
     });
@@ -78,6 +79,7 @@ class AIService {
         max_tokens: config.maxTokens ?? 2048,
         system: systemMsg?.content,
         messages: userMessages,
+        ...(config.topP !== undefined && { top_p: config.topP }),
         stream: !!onChunk,
       }),
     });
@@ -111,6 +113,8 @@ class AIService {
         options: {
           temperature: config.temperature ?? 0.7,
           num_predict: config.maxTokens ?? 2048,
+          ...(config.topP !== undefined && { top_p: config.topP }),
+          ...(config.contextSize !== undefined && { num_ctx: config.contextSize }),
         },
         stream: !!onChunk,
       }),
@@ -147,6 +151,7 @@ class AIService {
         messages,
         temperature: config.temperature ?? 0.7,
         max_tokens: config.maxTokens ?? 2048,
+        ...(config.topP !== undefined && { top_p: config.topP }),
         stream: !!onChunk,
       }),
     });
