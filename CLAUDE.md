@@ -762,6 +762,40 @@ Sidebar: выбрать блокнот
 
 ---
 
+### Этап 25 — Глубокий code review всего проекта (security, logic, robustness)
+**Статус:** ✅ Завершён
+**Коммит:** `1f3d738`
+**Дата:** 2026-03-22
+
+#### Оценка здоровья проекта: 7.5 / 10 (было ~6/10)
+
+#### Исправлено (10 проблем, 7 файлов)
+
+| Файл | Проблема | Серьёзность | Исправление |
+|------|---------|------------|------------|
+| `export.ts` | **XSS**: `note.title` и теги инжектировались в `document.write` без экранирования | 🔴 Критично | Хелпер `escapeHtml()`, применён везде в `printToPDF` и `downloadHTML` |
+| `export.ts` | **YAML**: `:` в тегах ломал YAML frontmatter | 🟡 Важно | Экранирование `:` → `&#58;` в значениях тегов |
+| `ai.ts` | `response.body!` в `chatGemini` — non-null assertion без проверки | 🔴 Критично | Явная проверка с информативной ошибкой |
+| `ai.ts` | **Frozen UI**: стриминг мог зависнуть навсегда при потере сети | 🟡 Важно | 60s timeout через `Promise.race` на каждый `reader.read()` |
+| `store/index.ts` | **Тег-фильтр OR→AND**: заметки с *любым* тегом вместо *всех* | 🟡 Важно | Подсчёт количества совпадений тегов, фильтр `count === tagIds.length` |
+| `store/index.ts` | `createNote` молча падал — пользователь не видел ошибки | 🟡 Важно | `catch` → `set({ connectionError: msg })` |
+| `joplin.ts` | **Бесконечный цикл**: пагинация без ограничения | 🔴 Критично | `MAX_PAGES = 500` в `getAllNotes` и `getNotesByNotebook` |
+| `AggregatorView.tsx` | `n.body.toLowerCase()` краш если `body = null` | 🔴 Критично | `(n.body ?? '').toLowerCase()` |
+| `deduplication.ts` | Пустые заметки → одинаковый хэш → ложные дубли | 🟡 Важно | `if (!normalized) continue` в `findByHash`; `(n.body ?? '')` в AI-батче |
+| `NoteEditor.tsx` | `saveTimerRef` не очищался при unmount → callback на мёртвый компонент | 🟡 Важно | `clearTimeout(saveTimerRef.current)` в cleanup функции useEffect |
+
+#### Оставшиеся рекомендации (не критичные)
+
+| Тема | Описание |
+|------|---------|
+| Lazy loading | `marked` импортируется статически и динамически — Vite предупреждает, bundle не сплитится |
+| Gemini timeout | Добавить аналогичный 60s таймаут в инлайн-цикл `chatGemini` (там нет `readStream`) |
+| Temperature slider | Визуально ограничить `max` слайдера до `TEMPERATURE_MAX[provider]` (сейчас только clamping при сохранении) |
+| AI JSON validation | Нет runtime-валидации, что JSON от AI classifier соответствует `Record<string, string>` |
+| Bundle splitting | 924KB main chunk — стоит split по вкладкам через `React.lazy` |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)
