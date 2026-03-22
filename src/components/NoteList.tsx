@@ -11,8 +11,10 @@ import {
   Tag,
   CheckCheck,
   X,
+  Sparkles,
 } from 'lucide-react';
 import type { SortField } from '../types';
+import { NotebookCompiler } from './NotebookCompiler';
 
 function formatDate(ts: number): string {
   const d = new Date(ts);
@@ -35,6 +37,7 @@ export function NoteList() {
     isLoadingNotes,
     selectedNote,
     sort,
+    filter,
     setSort,
     openNote,
     getFilteredNotes,
@@ -48,6 +51,7 @@ export function NoteList() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [multiMode, setMultiMode] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [showCompiler, setShowCompiler] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -101,6 +105,16 @@ export function NoteList() {
         ))}
         <div className="ml-auto flex items-center gap-1">
           <span className="text-xs text-gray-600">{notes.length}</span>
+          {notes.length > 1 && (filter.notebookId || filter.tagIds.length > 0) && (
+            <button
+              onClick={() => setShowCompiler(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 hover:text-purple-300 transition-colors"
+              title="Скомпилировать в документ с помощью AI"
+            >
+              <Sparkles className="w-3 h-3" />
+              AI
+            </button>
+          )}
           <button
             onClick={() => { setMultiMode(v => !v); setSelected(new Set()); }}
             className={`p-1 rounded text-xs transition-colors ${multiMode ? 'text-blue-400 bg-blue-600/20' : 'text-gray-600 hover:text-gray-400'}`}
@@ -149,6 +163,9 @@ export function NoteList() {
           </button>
         </div>
       )}
+
+      {/* AI Compiler modal */}
+      {showCompiler && <NotebookCompiler onClose={() => setShowCompiler(false)} />}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
