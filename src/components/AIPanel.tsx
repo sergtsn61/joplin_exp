@@ -77,7 +77,7 @@ export function AIPanel() {
           <Sparkles className="w-3.5 h-3.5 text-purple-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-white leading-tight">AI Assistant</h3>
+          <h3 className="text-sm font-semibold text-white leading-tight">AI Assistant ✓v2</h3>
           <p className="text-xs text-gray-500 truncate">
             {settings.ai.provider} · {settings.ai.model.split('/').pop()}
           </p>
