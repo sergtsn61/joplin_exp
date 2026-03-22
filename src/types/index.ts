@@ -33,7 +33,7 @@ export interface JoplinConfig {
 }
 
 // AI types
-export type AIProvider = 'openai' | 'anthropic' | 'ollama' | 'openrouter';
+export type AIProvider = 'openai' | 'anthropic' | 'ollama' | 'openrouter' | 'gemini';
 
 export interface AIModel {
   id: string;

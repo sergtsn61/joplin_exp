@@ -22,6 +22,7 @@ const PROVIDERS: { id: AIProvider; label: string }[] = [
   { id: 'ollama', label: 'Ollama (Local)' },
   { id: 'anthropic', label: 'Anthropic Claude' },
   { id: 'openai', label: 'OpenAI' },
+  { id: 'gemini', label: 'Google Gemini' },
   { id: 'openrouter', label: 'OpenRouter' },
 ];
 
@@ -205,10 +206,17 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </>
               )}
 
-              {(provider === 'openai' || provider === 'anthropic' || provider === 'openrouter') && (
+              {(provider === 'openai' || provider === 'anthropic' || provider === 'openrouter' || provider === 'gemini') && (
                 <Field label="API Key">
                   <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                    className="input font-mono" placeholder={`${provider} API key`} />
+                    className="input font-mono" placeholder={
+                      provider === 'gemini' ? 'AIza... (Google AI Studio)' : `${provider} API key`
+                    } />
+                  {provider === 'gemini' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Получить ключ: <span className="text-blue-400">aistudio.google.com</span>
+                    </p>
+                  )}
                 </Field>
               )}
 

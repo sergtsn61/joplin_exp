@@ -16,6 +16,8 @@ class AIService {
         return this.chatOllama(messages, config, onChunk);
       case 'openrouter':
         return this.chatOpenRouter(messages, config, onChunk);
+      case 'gemini':
+        return this.chatGemini(messages, config, onChunk);
       default:
         throw new Error(`Unknown AI provider: ${config.provider}`);
     }
@@ -235,6 +237,86 @@ class AIService {
     return fullText;
   }
 
+  private async chatGemini(
+    messages: AIMessage[],
+    config: AIConfig,
+    onChunk?: (chunk: string) => void
+  ): Promise<string> {
+    if (!config.apiKey) throw new Error('Gemini API key is required');
+
+    const model = config.model || 'gemini-2.0-flash';
+    const systemMsg = messages.find(m => m.role === 'system');
+    const userMessages = messages.filter(m => m.role !== 'system');
+
+    const contents = userMessages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+    const body: Record<string, unknown> = {
+      contents,
+      generationConfig: {
+        temperature: config.temperature ?? 0.7,
+        maxOutputTokens: config.maxTokens ?? 2048,
+        ...(config.topP !== undefined && { topP: config.topP }),
+      },
+    };
+    if (systemMsg) {
+      body.systemInstruction = { parts: [{ text: systemMsg.content }] };
+    }
+
+    const action = onChunk ? 'streamGenerateContent?alt=sse' : 'generateContent';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${action}&key=${config.apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      signal: config.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Gemini API error: ${response.status}`);
+    }
+
+    if (onChunk) {
+      // SSE stream: each `data: {...}` line is a candidate chunk
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (!json || json === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(json);
+            const text: string = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            if (text) {
+              fullText += text;
+              onChunk(text);
+            }
+          } catch {
+            // skip malformed chunk
+          }
+        }
+      }
+      return fullText;
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  }
+
   async getOllamaModels(host = 'http://localhost:11434'): Promise<AIModel[]> {
     try {
       const { data } = await axios.get(`${host}/api/tags`, { timeout: 5000 });
@@ -262,6 +344,12 @@ class AIService {
         { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', provider: 'anthropic' },
       ],
       ollama: [],
+      gemini: [
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini' },
+        { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'gemini' },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini' },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini' },
+      ],
       openrouter: [
         { id: 'anthropic/claude-haiku-4-5-20251001', name: 'Claude Haiku (OpenRouter)', provider: 'openrouter' },
         { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini (OpenRouter)', provider: 'openrouter' },
