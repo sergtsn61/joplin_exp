@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { History, X, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
 import { joplinService } from '../services/joplin';
 import { useStore } from '../store';
@@ -16,6 +16,15 @@ export function VersionHistory({ onClose }: VersionHistoryProps) {
   const [preview, setPreview] = useState<{ title: string; body: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   useEffect(() => {
     if (!selectedNote) return;

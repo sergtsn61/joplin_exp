@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '../store';
 import type { AIProvider, AIModel } from '../types';
 import { aiService } from '../services/ai';
@@ -66,6 +66,15 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   // Import error
   const [importError, setImportError] = useState('');
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const presetModels = aiService.getPresetModels();
   const tempMax = TEMPERATURE_MAX[provider];
@@ -207,6 +216,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           {/* AI */}
           {tab === 'ai' && (
             <>
+              {/* — Connection — */}
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Connection</p>
+
               <Field label="Provider">
                 <select value={provider} onChange={e => { setProvider(e.target.value as AIProvider); setModel(''); }}
                   className="input">
@@ -271,32 +283,46 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </Field>
               )}
 
-              <Field label="Model">
-                {availableModels.length > 0 ? (
-                  <select value={model} onChange={e => setModel(e.target.value)} className="input">
-                    {availableModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                ) : (
-                  <input value={model} onChange={e => setModel(e.target.value)}
-                    className="input" placeholder="Model name or ID" />
-                )}
-              </Field>
+              {/* — Model — */}
+              <div className="border-t border-gray-800 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Model</p>
+                <Field label="Model">
+                  {availableModels.length > 0 ? (
+                    <select value={model} onChange={e => setModel(e.target.value)} className="input">
+                      {availableModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  ) : (
+                    <input value={model} onChange={e => setModel(e.target.value)}
+                      className="input" placeholder="Model name or ID" />
+                  )}
+                </Field>
+              </div>
 
-              <Field label={`Temperature: ${temperature}`}>
-                <input type="range" min="0" max={tempMax} step="0.1" value={temperature}
-                  onChange={e => setTemperature(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500" />
-                <div className="flex justify-between text-xs text-gray-600 mt-1">
-                  <span>Focused (0)</span>
-                  <span>Creative ({tempMax})</span>
+              {/* — Generation — */}
+              <div className="border-t border-gray-800 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Generation</p>
+                <div className="space-y-4">
+                  <Field label={`Temperature: ${temperature}`}>
+                    <input type="range" min="0" max={tempMax} step="0.1" value={temperature}
+                      onChange={e => setTemperature(parseFloat(e.target.value))}
+                      className="w-full accent-blue-500" />
+                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                      <span>Focused (0)</span>
+                      <span>Creative ({tempMax})</span>
+                    </div>
+                  </Field>
+
+                  <Field label={`Max Tokens: ${maxTokens}`}>
+                    <input type="range" min="256" max="8192" step="256" value={maxTokens}
+                      onChange={e => setMaxTokens(parseInt(e.target.value, 10))}
+                      className="w-full accent-blue-500" />
+                    <div className="flex justify-between text-xs text-gray-600 mt-1">
+                      <span>256</span>
+                      <span>8192</span>
+                    </div>
+                  </Field>
                 </div>
-              </Field>
-
-              <Field label={`Max Tokens: ${maxTokens}`}>
-                <input type="range" min="256" max="8192" step="256" value={maxTokens}
-                  onChange={e => setMaxTokens(parseInt(e.target.value, 10))}
-                  className="w-full accent-blue-500" />
-              </Field>
+              </div>
             </>
           )}
 

@@ -24,6 +24,7 @@ import {
   History,
   Paperclip,
   LayoutTemplate,
+  MoreHorizontal,
 } from 'lucide-react';
 import type { ViewMode } from '../types';
 import { exportService } from '../services/export';
@@ -44,6 +45,7 @@ export function NoteEditor() {
   const [titleEditing, setTitleEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -137,9 +139,13 @@ export function NoteEditor() {
   useHotkeys([
     { key: 's', ctrl: true, handler: handleManualSave },
     { key: 'F11', handler: () => setIsFullscreen(v => !v) },
-    { key: 'Escape', handler: () => { if (isFullscreen) setIsFullscreen(false); } },
+    { key: 'Escape', handler: () => {
+      if (showMoreMenu) { setShowMoreMenu(false); return; }
+      if (showExport) { setShowExport(false); return; }
+      if (isFullscreen) setIsFullscreen(false);
+    }},
     { key: 'p', ctrl: true, handler: () => setViewMode(viewMode === 'preview' ? 'editor' : 'preview') },
-  ], [handleManualSave, isFullscreen, viewMode]);
+  ], [handleManualSave, isFullscreen, showMoreMenu, showExport, viewMode]);
 
   if (!selectedNote) {
     return (
@@ -211,35 +217,17 @@ export function NoteEditor() {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <AIQuickActions />
-
-          {/* Templates */}
-          <button
-            onClick={() => setShowTemplates(true)}
-            className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Templates"
-          >
-            <LayoutTemplate className="w-3.5 h-3.5" />
-          </button>
 
           {/* Save */}
           <button
             onClick={handleManualSave}
             disabled={isSaving}
-            className="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 hover:text-green-400 hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-gray-800 rounded-lg transition-colors"
             title="Save (Ctrl+S)"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          </button>
-
-          {/* History */}
-          <button
-            onClick={() => setShowVersionHistory(true)}
-            className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Version History"
-          >
-            <History className="w-3.5 h-3.5" />
           </button>
 
           {/* Attachments */}
@@ -247,6 +235,7 @@ export function NoteEditor() {
             onClick={() => setShowAttachments(v => !v)}
             className={`p-1.5 hover:bg-gray-800 rounded-lg transition-colors ${showAttachments ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'}`}
             title="Attachments"
+            aria-label="Toggle attachments panel"
           >
             <Paperclip className="w-3.5 h-3.5" />
           </button>
@@ -254,9 +243,10 @@ export function NoteEditor() {
           {/* Export menu */}
           <div className="relative">
             <button
-              onClick={() => setShowExport(!showExport)}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors"
+              onClick={() => { setShowExport(!showExport); setShowMoreMenu(false); }}
+              className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors"
               title="Export"
+              aria-label="Export note"
             >
               <Download className="w-3.5 h-3.5" />
             </button>
@@ -284,32 +274,64 @@ export function NoteEditor() {
             )}
           </div>
 
+          {/* Tags (compact) */}
           {selectedNote.tags && selectedNote.tags.length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-1">
               <Tag className="w-3 h-3 text-gray-600" />
-              {selectedNote.tags.slice(0, 3).map(tag => (
+              {selectedNote.tags.slice(0, 2).map(tag => (
                 <span key={tag.id} className="text-xs bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded-full">
                   {tag.title}
                 </span>
               ))}
+              {selectedNote.tags.length > 2 && (
+                <span className="text-xs text-gray-600">+{selectedNote.tags.length - 2}</span>
+              )}
             </div>
           )}
+
+          {/* ... More menu (History, Templates) */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowMoreMenu(v => !v); setShowExport(false); }}
+              className={`p-1.5 hover:bg-gray-800 rounded-lg transition-colors ${showMoreMenu ? 'text-white bg-gray-800' : 'text-gray-400 hover:text-gray-200'}`}
+              title="More actions"
+              aria-label="More actions"
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+            {showMoreMenu && (
+              <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 py-1 min-w-44">
+                <button
+                  onClick={() => { setShowTemplates(true); setShowMoreMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                >
+                  <LayoutTemplate className="w-4 h-4 text-green-400" /> Templates
+                </button>
+                <button
+                  onClick={() => { setShowVersionHistory(true); setShowMoreMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                >
+                  <History className="w-4 h-4 text-blue-400" /> Version History
+                </button>
+                <div className="border-t border-gray-700 my-1" />
+                <button
+                  onClick={() => { handleDelete(); setShowMoreMenu(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-700"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete note
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Fullscreen */}
           <button
             onClick={() => setIsFullscreen(v => !v)}
             className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
             title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen (F11)'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
-
-          <button
-            onClick={handleDelete}
-            className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Delete note"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

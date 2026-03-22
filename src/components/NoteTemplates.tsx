@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LayoutTemplate, X, ChevronRight } from 'lucide-react';
 import type { NoteTemplate } from '../types';
 
@@ -193,6 +193,15 @@ interface NoteTemplatesProps {
 
 export function NoteTemplates({ onSelect, onClose }: NoteTemplatesProps) {
   const [search, setSearch] = useState('');
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
   const filtered = TEMPLATES.filter(t =>
