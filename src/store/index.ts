@@ -297,7 +297,7 @@ export const useStore = create<AppState>()(
 
       // AI
       sendMessage: async (content) => {
-        const { selectedNote, settings, chatMessages } = get();
+        const { selectedNote, settings } = get();
         const userMsg: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
@@ -318,7 +318,7 @@ export const useStore = create<AppState>()(
               ? `You are a helpful assistant. The user is working on a note titled "${selectedNote.title}". Help them with their note-taking tasks.`
               : 'You are a helpful assistant for note-taking and knowledge management.',
           },
-          ...chatMessages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+          ...get().chatMessages.slice(-10).map(m => ({ role: m.role, content: m.content })),
           { role: 'user', content },
         ];
 
@@ -421,7 +421,7 @@ export const useStore = create<AppState>()(
         if (filter.search) {
           const q = filter.search.toLowerCase();
           filtered = filtered.filter(n =>
-            n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)
+            (n.title ?? '').toLowerCase().includes(q) || (n.body ?? '').toLowerCase().includes(q)
           );
         }
 

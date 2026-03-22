@@ -13,7 +13,10 @@ class ExportService {
       md += `created: ${date.toISOString()}\n`;
       md += `updated: ${updated.toISOString()}\n`;
       if (note.tags?.length) {
-        md += `tags: [${note.tags.map(t => `"${t.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`).join(', ')}]\n`;
+        md += `tags: [${note.tags.map(t => {
+          const safe = t.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
+          return `"${safe}"`;
+        }).join(', ')}]\n`;
       }
       md += '---\n\n';
     }

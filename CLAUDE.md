@@ -651,6 +651,40 @@ Sidebar: выбрать блокнот
 
 ---
 
+---
+
+### Этап 19 — UX-фиксы и настройка Ollama num_ctx
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Реализовано
+
+| Фича | Файл | Описание |
+|------|------|---------|
+| **Иконочные кнопки Agent/AI** | `NoteList.tsx` | Кнопки без текста (иконки) — не обрезаются при узкой колонке |
+| **Компактная Sort-панель** | `NoteList.tsx` | `shrink-0`, `gap-0.5`, метки `Upd`/`New` — все кнопки умещаются |
+| **Ширина колонки заметок** | `App.tsx` | `w-64` → `w-80` (256 → 320 px) |
+| **Ollama num_ctx** | `SettingsModal.tsx`, `ai.ts`, `types/index.ts` | Поле в Settings → AI для задания окна контекста Ollama (2048–1 048 576, дефолт 32 768); передаётся как `num_ctx` в каждый запрос; `contextSize` компилятора перекрывает его |
+
+---
+
+### Этап 20 — Code review: логика, математика, чистота
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Исправлено (6 проблем)
+
+| Файл | Проблема | Исправление |
+|------|---------|------------|
+| `NotebookCompiler.tsx` | Деление на ноль при `localContextSize = 0` | Гвардия `localContextSize > 0`, fallback → 100% |
+| `store/index.ts` | Stale closure в `sendMessage`: `chatMessages` захвачен до `set()` | Заменён на `get().chatMessages` |
+| `store/index.ts` | Null-safety в фильтре поиска | `(n.title ?? '').toLowerCase()` и `(n.body ?? '')` |
+| `services/aggregator.ts` | Race condition: `results.push()` внутри `Promise.allSettled` | Возвращаем массив из callback, пушим в `fulfilled` ветке |
+| `components/NotebookAgentModal.tsx` | `(err as Error).message` — небезопасный каст | `err instanceof Error ? err.message : String(err)` |
+| `services/export.ts` | YAML-теги не экранируют `\n`/`\r` | `.replace(/\n/g, '\\n').replace(/\r/g, '')` |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)

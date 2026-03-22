@@ -196,7 +196,9 @@ export function NotebookCompiler({ onClose }: Props) {
     return estimateTokens(corpusText + systemText + historyText);
   }, [notes, selectedIds, localSystemPrompt, customInstructions, currentOutput]);
 
-  const contextPct = Math.min(100, Math.round((contextUsed / localContextSize) * 100));
+  const contextPct = localContextSize > 0
+    ? Math.min(100, Math.round((contextUsed / localContextSize) * 100))
+    : 100;
   const ctxColor = contextPct < 50 ? 'bg-green-500' : contextPct < 80 ? 'bg-yellow-500' : 'bg-red-500';
 
   // Auto-scroll during generation

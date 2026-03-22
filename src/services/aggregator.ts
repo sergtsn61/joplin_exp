@@ -109,17 +109,18 @@ class AggregatorService {
         const client = this.clients.get(inst.id);
         if (!client) throw new Error(`No client for instance ${inst.id}`);
         const notes = await client.getAllNotes();
-        const annotated: AggregatedNote[] = notes.map(n => ({
+        return notes.map(n => ({
           ...n,
           instanceId: inst.id,
           instanceName: inst.name,
-        }));
-        results.push(...annotated);
+        })) as AggregatedNote[];
       })
     );
 
     for (const result of settled) {
-      if (result.status === 'rejected') {
+      if (result.status === 'fulfilled') {
+        results.push(...result.value);
+      } else {
         console.error('Failed to fetch notes from instance:', result.reason);
       }
     }

@@ -127,8 +127,9 @@ export function NotebookAgentModal({ onClose }: Props) {
           idx === i ? { ...ns, status: 'done' } : ns
         ));
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         setNoteStates(prev => prev.map((ns, idx) =>
-          idx === i ? { ...ns, status: 'skipped', newBody: `Error: ${(err as Error).message}` } : ns
+          idx === i ? { ...ns, status: 'skipped', newBody: `Error: ${msg}` } : ns
         ));
       }
 
@@ -175,7 +176,7 @@ export function NotebookAgentModal({ onClose }: Props) {
         }
       }
     } catch (err) {
-      setSaveError((err as Error).message);
+      setSaveError(err instanceof Error ? err.message : String(err));
     }
     setSaving(false);
   };
