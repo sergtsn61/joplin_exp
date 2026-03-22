@@ -11,16 +11,23 @@ export async function classifyNotes(
   const results: NoteTopicMap[] = [];
   let done = 0;
 
+  const fallback = (batch: AggregatedNote[]) => {
+    for (const note of batch) {
+      results.push({ noteId: note.id, instanceId: note.instanceId, topic: 'Other' });
+    }
+  };
+
   for (let i = 0; i < notes.length; i += BATCH_SIZE) {
     const batch = notes.slice(i, i + BATCH_SIZE);
 
+    // Use "instanceId:noteId" as key to avoid ID collisions across Joplin instances
     const prompt = `You are a note categorization assistant. Assign each note a short topic label (1-3 words, in the same language as the note title).
 
 Notes:
-${batch.map(n => `[${n.id}] "${n.title}"`).join('\n')}
+${batch.map(n => `[${n.instanceId}:${n.id}] "${n.title}"`).join('\n')}
 
-Respond ONLY with a JSON object mapping note IDs to topic strings.
-Example: {"id1": "Programming", "id2": "Cooking", "id3": "Programming"}`;
+Respond ONLY with a JSON object mapping the note keys to topic strings.
+Example: {"inst1:id1": "Programming", "inst1:id2": "Cooking"}`;
 
     try {
       let response = '';
@@ -34,19 +41,14 @@ Example: {"id1": "Programming", "id2": "Cooking", "id3": "Programming"}`;
       if (jsonMatch) {
         const parsed: Record<string, string> = JSON.parse(jsonMatch[0]);
         for (const note of batch) {
-          const topic = parsed[note.id] || 'Other';
+          const topic = parsed[`${note.instanceId}:${note.id}`] || 'Other';
           results.push({ noteId: note.id, instanceId: note.instanceId, topic });
         }
       } else {
-        // Fallback: assign "Other" to all in batch
-        for (const note of batch) {
-          results.push({ noteId: note.id, instanceId: note.instanceId, topic: 'Other' });
-        }
+        fallback(batch);
       }
     } catch {
-      for (const note of batch) {
-        results.push({ noteId: note.id, instanceId: note.instanceId, topic: 'Other' });
-      }
+      fallback(batch);
     }
 
     done += batch.length;

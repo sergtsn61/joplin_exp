@@ -21,6 +21,7 @@ export function TopicClassifier() {
   const classify = async () => {
     if (aggregatedNotes.length === 0) return;
     setIsClassifying(true);
+    setTopicMaps([]);
     setProgress({ done: 0, total: aggregatedNotes.length });
 
     const maps = await classifyNotes(aggregatedNotes, settings.ai, (done, total) => {
@@ -45,7 +46,7 @@ export function TopicClassifier() {
     setEditValue(currentTopic);
   };
 
-  const allTopics = topicGroups.map(g => g.topic);
+  const allTopics = useMemo(() => topicGroups.map(g => g.topic), [topicGroups]);
 
   return (
     <div className="flex flex-col h-full bg-gray-950 text-white overflow-hidden">
@@ -81,7 +82,7 @@ export function TopicClassifier() {
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-purple-500 transition-all"
-                style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }}
               />
             </div>
           </div>
