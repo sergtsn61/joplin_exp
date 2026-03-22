@@ -3,6 +3,7 @@ import {
   X, Sparkles, Loader2, Save, Copy, Check, ChevronDown, ChevronRight,
   FileText, BookOpen, GraduationCap, ListChecks, HelpCircle, Newspaper,
   MessageSquare, GitCompare, BookMarked, Plus, Trash2, Send, SlidersHorizontal,
+  RotateCcw, AlertCircle,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -769,8 +770,16 @@ Do not add meta-commentary — just return the revised document.`;
             )}
 
             {error && (
-              <div className="m-4 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm self-start flex items-start gap-3">
+              <div className="m-4 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm self-start w-[calc(100%-2rem)] flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
                 <span className="flex-1">{error}</span>
+                <button
+                  onClick={() => { setError(''); generate(); }}
+                  className="shrink-0 flex items-center gap-1 px-2 py-1 bg-red-800/50 hover:bg-red-700 rounded-lg text-xs font-medium text-red-300 hover:text-white transition-colors"
+                  title="Retry"
+                >
+                  <RotateCcw className="w-3 h-3" /> Retry
+                </button>
                 <button onClick={() => setError('')} className="shrink-0 text-red-400 hover:text-red-200 transition-colors">
                   <X className="w-4 h-4" />
                 </button>

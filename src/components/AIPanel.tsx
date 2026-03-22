@@ -70,7 +70,7 @@ export function AIPanel() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 border-l border-gray-800 w-80 shrink-0">
+    <div className="flex flex-col h-full bg-gray-900 border-l border-gray-800 w-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800">
         <div className="w-6 h-6 rounded-md bg-purple-600/20 flex items-center justify-center shrink-0">

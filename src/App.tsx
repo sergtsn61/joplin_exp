@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from './store';
 import { ConnectionSetup } from './components/ConnectionSetup';
 import { Sidebar } from './components/Sidebar';
@@ -42,6 +42,36 @@ function App() {
   const { isConnected, sidebarOpen, aiPanelOpen, settings, toggleSidebar, toggleAIPanel, updateSettings } = useStore();
   const [appView, setAppView] = useState<AppView>('editor');
   const [showInstanceManager, setShowInstanceManager] = useState(false);
+
+  // Resizable AI panel
+  const AI_PANEL_MIN = 240;
+  const AI_PANEL_MAX = 600;
+  const [aiPanelWidth, setAiPanelWidth] = useState(320);
+  const isDragging = useRef(false);
+
+  const onResizerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDragging.current) return;
+      const newWidth = window.innerWidth - ev.clientX;
+      setAiPanelWidth(Math.max(AI_PANEL_MIN, Math.min(AI_PANEL_MAX, newWidth)));
+    };
+
+    const onMouseUp = () => {
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
 
   const isLight = settings.editor.theme === 'light';
 
@@ -133,7 +163,19 @@ function App() {
 
           <div className="flex-1 flex overflow-hidden min-w-0">
             <NoteEditor />
-            {aiPanelOpen && <AIPanel />}
+            {aiPanelOpen && (
+              <>
+                {/* Drag handle */}
+                <div
+                  onMouseDown={onResizerMouseDown}
+                  className="w-1 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors"
+                  title="Drag to resize"
+                />
+                <div style={{ width: aiPanelWidth }} className="shrink-0 overflow-hidden">
+                  <AIPanel />
+                </div>
+              </>
+            )}
           </div>
 
           {!aiPanelOpen && (
