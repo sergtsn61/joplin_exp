@@ -108,7 +108,7 @@ export function NoteList() {
         ))}
         <div className="ml-auto flex items-center gap-1">
           <span className="text-xs text-gray-600">{notes.length}</span>
-          {notes.length > 1 && (filter.notebookId || filter.tagIds.length > 0) && (
+          {notes.length > 0 && (
             <>
               <button
                 onClick={() => setShowAgent(true)}
