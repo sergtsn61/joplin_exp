@@ -8,9 +8,25 @@ import JSZip from 'jszip';
 import type { AggregatedNote, TopicGroup } from '../types';
 
 interface BuildPlan {
+  id: string;
   notebookTitle: string;
   topics: string[];
   targetInstanceId: string;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function yamlQuote(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '')}"`;
 }
 
 export function NotebookBuilder() {
@@ -18,6 +34,7 @@ export function NotebookBuilder() {
   const [plans, setPlans] = useState<BuildPlan[]>([]);
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [newPlan, setNewPlan] = useState<BuildPlan>({
+    id: crypto.randomUUID(),
     notebookTitle: '',
     topics: [],
     targetInstanceId: '',
@@ -36,7 +53,7 @@ export function NotebookBuilder() {
   const addPlan = () => {
     if (!newPlan.notebookTitle.trim() || !newPlan.targetInstanceId || newPlan.topics.length === 0) return;
     setPlans(prev => [...prev, { ...newPlan }]);
-    setNewPlan({ notebookTitle: '', topics: [], targetInstanceId: connectedInstances[0]?.id || '' });
+    setNewPlan({ id: crypto.randomUUID(), notebookTitle: '', topics: [], targetInstanceId: connectedInstances[0]?.id || '' });
     setShowAddPlan(false);
   };
 
@@ -61,9 +78,10 @@ export function NotebookBuilder() {
     setBuildLog([]);
     setDone(false);
 
+    const log = (msg: string) => setBuildLog(prev => [...prev, msg]);
+
     for (const plan of plans) {
       const notes = getNotesForTopics(plan.topics);
-      const log = (msg: string) => setBuildLog(prev => [...prev, msg]);
 
       log(`Creating notebook "${plan.notebookTitle}"...`);
       try {
@@ -98,52 +116,52 @@ export function NotebookBuilder() {
     for (const plan of plans) {
       const notes = getNotesForTopics(plan.topics);
       const content = notes.map(n =>
-        `# ${n.title}\n\n> Source: ${n.instanceName}\n\n${n.body}\n\n---\n`
+        `# ${n.title}\n\n> Source: ${n.instanceName}\n\n${n.body ?? ''}\n\n---\n`
       ).join('\n');
-
-      const blob = new Blob([content], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${plan.notebookTitle.replace(/[^a-z0-9]/gi, '_')}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const filename = `${plan.notebookTitle.replace(/[^a-z0-9]/gi, '_')}.md`;
+      downloadBlob(new Blob([content], { type: 'text/markdown' }), filename);
     }
   };
 
   const exportToZip = async () => {
     const zip = new JSZip();
+    const safeFsName = (s: string) => s.replace(/[/\\?%*:|"<>]/g, '_');
+
     for (const plan of plans) {
       const notes = getNotesForTopics(plan.topics);
-      const folder = zip.folder(plan.notebookTitle.replace(/[/\\?%*:|"<>]/g, '_')) || zip;
-      // Group by topic inside the notebook folder
+      const folder = zip.folder(safeFsName(plan.notebookTitle)) || zip;
+
       for (const topic of plan.topics) {
         const topicNotes = notes.filter(n => {
           const tm = topicMaps.find(m => m.noteId === n.id && m.instanceId === n.instanceId);
           return tm?.topic === topic;
         });
-        const topicFolder = folder.folder(topic.replace(/[/\\?%*:|"<>]/g, '_')) || folder;
+        const topicFolder = folder.folder(safeFsName(topic)) || folder;
         for (const note of topicNotes) {
-          const safeName = (note.title || 'untitled').replace(/[/\\?%*:|"<>]/g, '_').substring(0, 80);
-          const frontmatter = `---\ntitle: "${note.title}"\nsource: ${note.instanceName}\nupdated: ${new Date(note.updated_time).toISOString()}\ntopic: ${topic}\n---\n\n`;
-          topicFolder.file(`${safeName}.md`, frontmatter + note.body);
+          const safeName = safeFsName(note.title || 'untitled').substring(0, 80);
+          const frontmatter = [
+            '---',
+            `title: ${yamlQuote(note.title || '')}`,
+            `source: ${yamlQuote(note.instanceName || '')}`,
+            `updated: ${new Date(note.updated_time).toISOString()}`,
+            `topic: ${yamlQuote(topic)}`,
+            '---',
+            '',
+            '',
+          ].join('\n');
+          topicFolder.file(`${safeName}.md`, frontmatter + (note.body ?? ''));
         }
       }
     }
     const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'joplin-export.zip';
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, 'joplin-export.zip');
   };
 
   const exportToPDF = () => {
     for (const plan of plans) {
       const notes = getNotesForTopics(plan.topics);
       const html = notes.map(n => {
-        const bodyHtml = marked.parse(n.body) as string;
+        const bodyHtml = String(marked.parse(n.body ?? ''));
         return `<h1>${n.title}</h1><p style="color:#666;font-size:12px">Source: ${n.instanceName}</p>${bodyHtml}<hr>`;
       }).join('\n');
 
@@ -255,7 +273,7 @@ export function NotebookBuilder() {
           const notes = getNotesForTopics(plan.topics);
           const targetName = instances.find(i => i.id === plan.targetInstanceId)?.name || '?';
           return (
-            <div key={idx} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
+            <div key={plan.id} className="p-3 bg-gray-800 rounded-xl border border-gray-700">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{plan.notebookTitle}</p>
