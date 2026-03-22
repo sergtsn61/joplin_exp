@@ -722,6 +722,46 @@ Sidebar: выбрать блокнот
 
 ---
 
+### Этап 23 — Code review: Search Attachments (ResourceSearch)
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Исправлено (8 проблем)
+
+| Файл | Проблема | Исправление |
+|------|---------|------------|
+| `ResourceSearch.tsx` | Старые результаты видны во время новой загрузки | `setResults([])` в начале `handleSearch` |
+| `ResourceSearch.tsx` | Превью не сбрасывается при новом поиске | `setPreview(null)` в начале `handleSearch` |
+| `ResourceSearch.tsx` | Нет кнопки закрытия превью | Кнопка `×` с `onClick={() => setPreview(null)}` |
+| `ResourceSearch.tsx` | `previewUrl` + `previewMime` — два стейта, могут рассинхронизироваться | Объединены в один `preview: { url, mime } \| null` |
+| `ResourceSearch.tsx` | "No results" показывал текущий `query` (мог измениться) | Отдельный `lastQuery` — хранит именно тот запрос, по которому искали |
+| `ResourceSearch.tsx` | `formatSize(undefined/null)` → `"NaN B"` | Гвардия `if (!bytes \|\| bytes < 0) return '0 B'` |
+| `ResourceSearch.tsx` | `res.title \|\| \`file.${res.file_extension}\`` → `"file.undefined"` | Хелпер `getDisplayName`: `title → file.ext → 'Untitled'` |
+| `ResourceSearch.tsx` | `download={res.title}` — title может быть пустым | Заменён на `download={getDisplayName(res)}` |
+
+---
+
+### Этап 24 — Code review: Settings (SettingsModal)
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Исправлено (10 проблем)
+
+| Файл | Проблема | Исправление |
+|------|---------|------------|
+| `SettingsModal.tsx` | `parseInt(port)` → `NaN` при пустом поле → сохраняется в настройки | Хелпер `parsePort()`: валидирует 1–65535, fallback → 41184 |
+| `SettingsModal.tsx` | `parseInt(port)` дублируется в `handleSave` и `handleReconnect` | Единый вызов `parsePort(port)` |
+| `SettingsModal.tsx` | File input не сбрасывается → повторный импорт того же файла не работает | `e.target.value = ''` после чтения файла |
+| `SettingsModal.tsx` | `alert()` для ошибки импорта — блокирует UI | Инлайн `importError` стейт, отображается в футере |
+| `SettingsModal.tsx` | `ev.target?.result as string` без null-check | `typeof result !== 'string'` guard перед `JSON.parse` |
+| `SettingsModal.tsx` | Export: `a.click()` без `appendChild` — проблема в Firefox | `appendChild` / `removeChild` паттерн |
+| `SettingsModal.tsx` | Temperature max=2 для Anthropic → ошибка API (Anthropic max=1) | `TEMPERATURE_MAX` per provider; слайдер и значение зажимаются при сохранении |
+| `SettingsModal.tsx` | `provider === 'openai' \|\| provider === 'anthropic' \|\| ...` | Упрощено до `provider !== 'ollama'` |
+| `SettingsModal.tsx` | Word Wrap: `div` внутри `label` — семантически неверно | `button[role=switch][aria-checked]` |
+| `SettingsModal.tsx` | `parseInt` без радикса | `parseInt(value, 10)` везде |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)
