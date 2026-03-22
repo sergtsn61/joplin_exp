@@ -685,6 +685,26 @@ Sidebar: выбрать блокнот
 
 ---
 
+---
+
+### Этап 21 — Google Gemini + code review AI Compiler
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Реализовано
+
+| Фича | Файл | Описание |
+|------|------|---------|
+| **Google Gemini провайдер** | `ai.ts`, `types/index.ts`, `SettingsModal.tsx` | SSE-стриминг через `streamGenerateContent?alt=sse`; модели: gemini-2.0-flash, 2.0-flash-lite, 1.5-pro, 1.5-flash; пресет контекста 1M токенов |
+| **Сброс ошибки компилятора** | `NotebookCompiler.tsx` | Кнопка `×` на баннере ошибки; ошибка от прерванного запроса не отображается |
+| **AbortController в компиляторе** | `NotebookCompiler.tsx` | `stop()` теперь реально прерывает fetch через `AbortController.abort()` |
+| **Gemini в defaultContextSize** | `NotebookCompiler.tsx` | Все Gemini-модели → 1 000 000 токенов |
+| **Мёртвый код удалён** | `NotebookCompiler.tsx` | `return newIdx` из `runStream` нигде не использовался |
+| **`diff` мемоизирован** | `NotebookCompiler.tsx` | `useMemo` вместо пересчёта LCS O(m×n) при каждом рендере |
+| **Лишняя аннотация типа** | `NotebookCompiler.tsx` | `(note: JoplinNote)` в `.map` убрана — TypeScript выводит сам |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)

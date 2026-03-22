@@ -55,6 +55,10 @@ function defaultContextSize(model: string, provider: string): number {
     return 128000;
   }
   if (provider === 'openrouter') return 128000;
+  if (provider === 'gemini') {
+    if (model.includes('1.5')) return 1000000;
+    return 1000000; // gemini-2.0-flash also 1M
+  }
   // Ollama — local models vary widely, default 8k
   if (model.includes('llama3')) return 8192;
   if (model.includes('mistral')) return 32768;
@@ -158,6 +162,7 @@ export function NotebookCompiler({ onClose }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const abortRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
   // ── Refinement
@@ -222,7 +227,11 @@ export function NotebookCompiler({ onClose }: Props) {
     ).join('\n\n---\n\n');
   }, [notes, selectedIds]);
 
-  const stop = () => { abortRef.current = true; setIsGenerating(false); };
+  const stop = () => {
+    abortRef.current = true;
+    abortControllerRef.current?.abort();
+    setIsGenerating(false);
+  };
 
   // ── Shared streaming helper — prevents code duplication between generate/refine
   const runStream = async (
@@ -232,18 +241,17 @@ export function NotebookCompiler({ onClose }: Props) {
     setIsGenerating(true);
     setError('');
     abortRef.current = false;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const tempId = `streaming-${Date.now()}`;
-    let newIdx = 0;
 
     // Add temp version; capture its index atomically to avoid stale-closure race
     setVersions(prev => {
-      const cutAt = versionIdx + 1; // capture before setState batch
+      const cutAt = versionIdx + 1;
       const label = `v${cutAt + 1}`;
       const v: DocVersion = { id: tempId, label, content: '', ts: new Date() };
-      const next = [...prev.slice(0, cutAt), v];
-      newIdx = next.length - 1;
-      return next;
+      return [...prev.slice(0, cutAt), v];
     });
     setVersionIdx(prev => prev + 1);
 
@@ -251,22 +259,26 @@ export function NotebookCompiler({ onClose }: Props) {
     try {
       await aiService.chat(
         messages,
-        { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize },
+        { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize, signal: controller.signal },
         (chunk) => {
           if (abortRef.current) return;
           result += chunk;
           setVersions(prev => prev.map(v => v.id === tempId ? { ...v, content: result } : v));
         }
       );
-      setVersions(prev => prev.map(v => v.id === tempId ? { ...v, id: crypto.randomUUID() } : v));
+      if (!abortRef.current) {
+        setVersions(prev => prev.map(v => v.id === tempId ? { ...v, id: crypto.randomUUID() } : v));
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : errorMsg);
+      if (!abortRef.current) {
+        setError(e instanceof Error ? e.message : errorMsg);
+      }
       setVersions(prev => prev.filter(v => v.id !== tempId));
       setVersionIdx(prev => Math.max(0, prev - 1));
     } finally {
+      abortControllerRef.current = null;
       setIsGenerating(false);
     }
-    return newIdx;
   };
 
   // ── Generate (initial compilation)
@@ -372,8 +384,11 @@ Do not add meta-commentary — just return the revised document.`;
     setShowTemplates(false);
   };
 
-  // ── Diff
-  const diff = showDiff && versionIdx > 0 ? diffText(prevOutput, currentOutput) : null;
+  // ── Diff (memoized — diffText runs LCS which is O(m*n))
+  const diff = useMemo(
+    () => showDiff && versionIdx > 0 ? diffText(prevOutput, currentOutput) : null,
+    [showDiff, versionIdx, prevOutput, currentOutput],
+  );
   const DocIcon = docType.icon;
   const selectedCount = selectedIds.size;
 
@@ -530,7 +545,7 @@ Do not add meta-commentary — just return the revised document.`;
               </button>
               {notesExpanded && (
                 <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                  {notes.map((note: JoplinNote) => (
+                  {notes.map((note) => (
                     <label key={note.id} className="flex items-start gap-2 cursor-pointer group">
                       <input
                         type="checkbox"
@@ -755,8 +770,11 @@ Do not add meta-commentary — just return the revised document.`;
             )}
 
             {error && (
-              <div className="m-4 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm self-start">
-                {error}
+              <div className="m-4 p-4 bg-red-900/30 border border-red-700 rounded-xl text-red-300 text-sm self-start flex items-start gap-3">
+                <span className="flex-1">{error}</span>
+                <button onClick={() => setError('')} className="shrink-0 text-red-400 hover:text-red-200 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
 
