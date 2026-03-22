@@ -369,6 +369,52 @@ npm run lint          # ESLint
 
 ---
 
+### Этап 12 — Запуск Desktop приложения
+**Статус:** ✅ Завершён
+**Коммит:** (текущий)
+**Дата:** 2026-03-22
+
+**Проблемы и решения:**
+
+| Проблема | Решение |
+|---------|--------|
+| `libwebkit2gtk-4.1-0` не установлен | `apt-get install --fix-missing libwebkit2gtk-4.1-0 libwebkit2gtk-4.1-dev librsvg2-dev` |
+| `libvpx9` 404 ошибка | `apt --fix-broken install` — нашёл корректную версию |
+| `Port 1420 already in use` | `kill $(lsof -ti:1420)` |
+| Нет дисплея в headless среде | Xvfb + fluxbox + x11vnc |
+
+**Установленные системные зависимости Tauri 2:**
+```bash
+apt-get install -y libwebkit2gtk-4.1-0 libwebkit2gtk-4.1-dev \
+  libssl-dev librsvg2-dev
+apt --fix-broken install  # исправление зависимостей (libvpx9)
+```
+
+**Команды запуска (headless):**
+```bash
+# Виртуальный дисплей
+Xvfb :99 -screen 0 1280x800x24 &
+DISPLAY=:99 fluxbox &
+x11vnc -display :99 -nopw -listen 0.0.0.0 -forever -bg
+
+# Запуск приложения
+DISPLAY=:99 npm run tauri:dev
+```
+
+**Результат компиляции Rust:**
+```
+Compiling app v0.1.0
+Building [=======================>] 462/462: app
+Finished `dev` profile [unoptimized + debuginfo] in 3.43s
+Running `target/debug/app`
+```
+
+**Скриншот:** Приложение успешно запустилось — виден экран подключения к Joplin с полями Host/Port/Token.
+
+**VNC доступ:** порт 5900 (без пароля, dev режим)
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Drag & drop перетаскивание заметок между блокнотами
