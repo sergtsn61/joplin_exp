@@ -126,6 +126,7 @@ export function Sidebar() {
             onClick={() => createNote()}
             className="p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
             title="New note"
+            aria-label="Create new note"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -232,7 +233,8 @@ export function Sidebar() {
         <button
           onClick={disconnect}
           className="p-2 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
-          title="Disconnect"
+          title="Disconnect from Joplin"
+          aria-label="Disconnect from Joplin"
         >
           <LogOut className="w-4 h-4" />
         </button>

@@ -99,6 +99,8 @@ function App() {
             key={item.view}
             onClick={() => setAppView(item.view)}
             title={item.label}
+            aria-label={item.label}
+            aria-current={appView === item.view ? 'page' : undefined}
             className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
               appView === item.view
                 ? 'bg-blue-600 text-white'
@@ -115,6 +117,7 @@ function App() {
         <button
           onClick={toggleTheme}
           title={isLight ? 'Switch to Dark' : 'Switch to Light'}
+          aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
           className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
         >
           {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
@@ -124,6 +127,8 @@ function App() {
         <button
           onClick={() => setShowInstanceManager(v => !v)}
           title="Manage Joplin instances"
+          aria-label="Manage Joplin instances"
+          aria-expanded={showInstanceManager}
           className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             showInstanceManager
               ? 'bg-blue-600 text-white'

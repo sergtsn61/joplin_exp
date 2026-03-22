@@ -25,9 +25,12 @@ import {
   Paperclip,
   LayoutTemplate,
   MoreHorizontal,
+  Keyboard,
+  X,
 } from 'lucide-react';
 import type { ViewMode } from '../types';
 import { exportService } from '../services/export';
+import { joplinService } from '../services/joplin';
 import { AIQuickActions } from './AIQuickActions';
 import { VersionHistory } from './VersionHistory';
 import { AttachmentsPanel } from './AttachmentsPanel';
@@ -50,6 +53,8 @@ export function NoteEditor() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showHotkeys, setShowHotkeys] = useState(false);
+  const [resourceCount, setResourceCount] = useState<number | null>(null);
 
   // Initialize editor
   useEffect(() => {
@@ -135,17 +140,37 @@ export function NoteEditor() {
     }
   }, [createNote, saveCurrentNote]);
 
+  // Fetch attachment count when note changes
+  useEffect(() => {
+    if (!selectedNote) { setResourceCount(null); return; }
+    joplinService.getNoteResources(selectedNote.id)
+      .then(res => setResourceCount(res.length))
+      .catch(() => setResourceCount(null));
+  }, [selectedNote?.id]);
+
   // Global hotkeys
   useHotkeys([
     { key: 's', ctrl: true, handler: handleManualSave },
     { key: 'F11', handler: () => setIsFullscreen(v => !v) },
     { key: 'Escape', handler: () => {
+      if (showHotkeys) { setShowHotkeys(false); return; }
       if (showMoreMenu) { setShowMoreMenu(false); return; }
       if (showExport) { setShowExport(false); return; }
       if (isFullscreen) setIsFullscreen(false);
     }},
     { key: 'p', ctrl: true, handler: () => setViewMode(viewMode === 'preview' ? 'editor' : 'preview') },
-  ], [handleManualSave, isFullscreen, showMoreMenu, showExport, viewMode]);
+  ], [handleManualSave, isFullscreen, showMoreMenu, showExport, showHotkeys, viewMode]);
+
+  // '?' opens hotkeys overlay (skip when inside input/textarea)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === '?') { e.preventDefault(); setShowHotkeys(v => !v); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   if (!selectedNote) {
     return (
@@ -233,11 +258,16 @@ export function NoteEditor() {
           {/* Attachments */}
           <button
             onClick={() => setShowAttachments(v => !v)}
-            className={`p-1.5 hover:bg-gray-800 rounded-lg transition-colors ${showAttachments ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'}`}
-            title="Attachments"
-            aria-label="Toggle attachments panel"
+            className={`relative p-1.5 hover:bg-gray-800 rounded-lg transition-colors ${showAttachments ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'}`}
+            title={resourceCount ? `Attachments (${resourceCount})` : 'Attachments'}
+            aria-label={resourceCount ? `Toggle attachments panel (${resourceCount} files)` : 'Toggle attachments panel'}
           >
             <Paperclip className="w-3.5 h-3.5" />
+            {resourceCount !== null && resourceCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                {resourceCount > 9 ? '9+' : resourceCount}
+              </span>
+            )}
           </button>
 
           {/* Export menu */}
@@ -374,12 +404,65 @@ export function NoteEditor() {
         {isFullscreen && <span className="text-gray-500">F11 / Esc — exit fullscreen</span>}
         {isSaving && <span className="text-blue-500 ml-auto">Saving...</span>}
         {!isSaving && <span className="ml-auto">Updated {new Date(selectedNote.updated_time).toLocaleString()}</span>}
+        <button
+          onClick={() => setShowHotkeys(v => !v)}
+          className="p-0.5 rounded hover:bg-gray-800 hover:text-gray-400 transition-colors"
+          title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
+        >
+          <Keyboard className="w-3 h-3" />
+        </button>
       </div>
 
       {/* Modals */}
       {showVersionHistory && <VersionHistory onClose={() => setShowVersionHistory(false)} />}
       {showTemplates && (
         <NoteTemplates onSelect={handleTemplateSelect} onClose={() => setShowTemplates(false)} />
+      )}
+
+      {/* Hotkeys overlay */}
+      {showHotkeys && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setShowHotkeys(false)}
+        >
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+              <h2 className="font-semibold flex items-center gap-2 text-sm">
+                <Keyboard className="w-4 h-4 text-blue-400" />
+                Keyboard Shortcuts
+              </h2>
+              <button onClick={() => setShowHotkeys(false)} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-800">
+                  {[
+                    ['Ctrl + S', 'Save note'],
+                    ['Ctrl + P', 'Toggle Editor / Preview'],
+                    ['F11', 'Fullscreen mode'],
+                    ['Esc', 'Exit fullscreen / close menus'],
+                    ['?', 'Show this help'],
+                  ].map(([keys, desc]) => (
+                    <tr key={keys} className="group">
+                      <td className="py-2 pr-4 font-mono text-xs">
+                        {keys.split(' + ').map((k, i, arr) => (
+                          <span key={k}>
+                            <kbd className="px-1.5 py-0.5 bg-gray-800 border border-gray-600 rounded text-gray-200 text-xs">{k}</kbd>
+                            {i < arr.length - 1 && <span className="text-gray-600 mx-1">+</span>}
+                          </span>
+                        ))}
+                      </td>
+                      <td className="py-2 text-gray-400">{desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

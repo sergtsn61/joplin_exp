@@ -7,7 +7,6 @@ import {
   Check,
   SortAsc,
   SortDesc,
-  Loader2,
   Tag,
   CheckCheck,
   X,
@@ -103,6 +102,7 @@ export function NoteList() {
           <button
             key={field}
             onClick={() => handleSort(field)}
+            aria-label={`Sort by ${field === 'title' ? 'title' : field === 'updated_time' ? 'last updated' : 'date created'} ${sort.field === field ? (sort.order === 'asc' ? 'ascending' : 'descending') : ''}`}
             className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-xs transition-colors shrink-0 ${
               sort.field === field ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'
             }`}
@@ -205,9 +205,22 @@ export function NoteList() {
       {/* List */}
       <div className="flex-1 overflow-y-auto">
         {isLoadingNotes ? (
-          <div className="flex items-center justify-center h-32 text-gray-500">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            Loading notes...
+          <div className="p-2 space-y-0.5" aria-label="Loading notes...">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="px-3 py-3 border-b border-gray-800/50 animate-pulse">
+                <div className="flex items-start gap-2">
+                  <div className="w-4 h-4 rounded bg-gray-800 mt-0.5 shrink-0" />
+                  <div className="flex-1 space-y-2 min-w-0">
+                    <div className="flex justify-between gap-2">
+                      <div className="h-3 bg-gray-800 rounded" style={{ width: `${55 + (i * 13) % 35}%` }} />
+                      <div className="h-3 bg-gray-800 rounded w-10 shrink-0" />
+                    </div>
+                    <div className="h-2.5 bg-gray-800/60 rounded w-full" />
+                    <div className="h-2.5 bg-gray-800/40 rounded" style={{ width: `${40 + (i * 17) % 45}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : notes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-600">
