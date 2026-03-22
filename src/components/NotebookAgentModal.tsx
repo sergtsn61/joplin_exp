@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import {
   X, Bot, Play, Check, SkipForward, Save, Loader2,
   ChevronRight, CheckCheck, RotateCcw,
@@ -49,6 +49,7 @@ export function NotebookAgentModal({ onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const abortRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const started = noteStates.length > 0;
   const current = noteStates[currentIdx] ?? null;
@@ -56,9 +57,9 @@ export function NotebookAgentModal({ onClose }: Props) {
   const approved = noteStates.filter(ns => ns.status === 'approved');
   const savedCount = noteStates.filter(ns => ns.status === 'saved').length;
 
-  const updateNote = useCallback((id: string, patch: Partial<NoteAgentState>) => {
+  const updateNote = (id: string, patch: Partial<NoteAgentState>) => {
     setNoteStates(prev => prev.map(ns => ns.note.id === id ? { ...ns, ...patch } : ns));
-  }, []);
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -74,6 +75,8 @@ export function NotebookAgentModal({ onClose }: Props) {
   const runAgent = async () => {
     if (!instruction.trim()) return;
     abortRef.current = false;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const toProcess = allNotes.filter(n => selectedIds.has(n.id));
     const initial: NoteAgentState[] = toProcess.map(note => ({
@@ -90,12 +93,10 @@ export function NotebookAgentModal({ onClose }: Props) {
       const { note } = initial[i];
 
       setCurrentIdx(i);
-      setNoteStates(prev => prev.map((ns, idx) =>
-        idx === i ? { ...ns, status: 'processing', newBody: '' } : ns
-      ));
+      updateNote(note.id, { status: 'processing', newBody: '' });
       setActiveTab('after');
 
-      // Fetch full body from Joplin (list API may return truncated body)
+      // Fetch full body (list API may return truncated body)
       let fullNote = note;
       try {
         fullNote = await joplinService.getNote(note.id);
@@ -116,35 +117,29 @@ export function NotebookAgentModal({ onClose }: Props) {
 
       try {
         let accumulated = '';
-        await aiService.chat(messages, settings.ai, (chunk) => {
+        await aiService.chat(messages, { ...settings.ai, signal: controller.signal }, (chunk) => {
+          if (abortRef.current) return;
           accumulated += chunk;
-          setNoteStates(prev => prev.map((ns, idx) =>
-            idx === i ? { ...ns, newBody: accumulated } : ns
-          ));
+          updateNote(note.id, { newBody: accumulated });
         });
 
-        setNoteStates(prev => prev.map((ns, idx) =>
-          idx === i ? { ...ns, status: 'done' } : ns
-        ));
+        if (!abortRef.current) {
+          updateNote(note.id, { status: 'done' });
+        }
       } catch (err) {
+        if (abortRef.current) break;
         const msg = err instanceof Error ? err.message : String(err);
-        setNoteStates(prev => prev.map((ns, idx) =>
-          idx === i ? { ...ns, status: 'skipped', newBody: `Error: ${msg}` } : ns
-        ));
-      }
-
-      // Pause before next note to let user review
-      // (user can click Approve/Skip to advance, or we wait briefly)
-      if (!abortRef.current) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        updateNote(note.id, { status: 'skipped', newBody: `Error: ${msg}` });
       }
     }
 
+    abortControllerRef.current = null;
     setRunning(false);
   };
 
   const stopAgent = () => {
     abortRef.current = true;
+    abortControllerRef.current?.abort();
     setRunning(false);
   };
 
@@ -182,6 +177,9 @@ export function NotebookAgentModal({ onClose }: Props) {
   };
 
   const reset = () => {
+    abortRef.current = true;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setNoteStates([]);
     setCurrentIdx(0);
     setRunning(false);

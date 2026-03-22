@@ -53,6 +53,7 @@ export interface AIConfig {
   topP?: number;
   contextSize?: number;
   systemPrompt?: string;
+  signal?: AbortSignal;
 }
 
 export interface AIMessage {

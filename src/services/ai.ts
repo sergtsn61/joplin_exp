@@ -30,6 +30,7 @@ class AIService {
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
+      signal: config.signal,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
@@ -69,6 +70,7 @@ class AIService {
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: config.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': config.apiKey,
@@ -106,6 +108,7 @@ class AIService {
 
     const response = await fetch(`${host}/api/chat`, {
       method: 'POST',
+      signal: config.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: config.model || 'llama3.2',
@@ -145,6 +148,7 @@ class AIService {
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
+      signal: config.signal,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
