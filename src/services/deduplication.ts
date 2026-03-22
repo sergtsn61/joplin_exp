@@ -47,7 +47,9 @@ export function findByHash(notes: AggregatedNote[]): DuplicateGroup[] {
   const groups = new Map<string, AggregatedNote[]>();
 
   for (const note of notes) {
-    const hash = hashString(normalizeBody(note.body ?? ''));
+    const normalized = normalizeBody(note.body ?? '');
+    if (!normalized) continue; // skip empty notes — they'd all collide
+    const hash = hashString(normalized);
     if (!groups.has(hash)) groups.set(hash, []);
     groups.get(hash)!.push(note);
   }
@@ -103,7 +105,7 @@ export async function findByAI(
   const summaries = notes.map(n => ({
     id: n.id,
     title: n.title,
-    preview: n.body.substring(0, 200),
+    preview: (n.body ?? '').substring(0, 200),
   }));
 
   const batchSize = 20;

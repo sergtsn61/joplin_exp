@@ -50,8 +50,9 @@ class JoplinService {
     const notes: JoplinNote[] = [];
     let page = 1;
     let hasMore = true;
+    const MAX_PAGES = 500; // ~50k notes safeguard
 
-    while (hasMore) {
+    while (hasMore && page <= MAX_PAGES) {
       const result = await this.getNotes(page, 100);
       notes.push(...result.items);
       hasMore = result.has_more;
@@ -148,7 +149,8 @@ class JoplinService {
     const notes: JoplinNote[] = [];
     let page = 1;
     let hasMore = true;
-    while (hasMore) {
+    const MAX_PAGES = 500;
+    while (hasMore && page <= MAX_PAGES) {
       const { data } = await this.client!.get(`/folders/${notebookId}/notes`, {
         params: {
           fields: 'id,title,body,created_time,updated_time,parent_id,is_todo,todo_completed',

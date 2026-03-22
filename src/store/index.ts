@@ -166,11 +166,18 @@ export const useStore = create<AppState>()(
             const tagNoteArrays = await Promise.all(
               filter.tagIds.map(tagId => joplinService.getNotesByTag(tagId))
             );
-            const noteMap = new Map<string, JoplinNote>();
+            // AND semantics: note must have ALL selected tags
+            const countMap = new Map<string, { note: JoplinNote; count: number }>();
             for (const tagNotes of tagNoteArrays) {
-              for (const note of tagNotes) noteMap.set(note.id, note);
+              for (const note of tagNotes) {
+                const entry = countMap.get(note.id);
+                if (entry) entry.count++;
+                else countMap.set(note.id, { note, count: 1 });
+              }
             }
-            notes = Array.from(noteMap.values());
+            notes = Array.from(countMap.values())
+              .filter(e => e.count === filter.tagIds.length)
+              .map(e => e.note);
           } else if (filter.search) {
             notes = await joplinService.searchNotes(filter.search);
           } else {
@@ -221,8 +228,9 @@ export const useStore = create<AppState>()(
             parent_id: notebookId || filter.notebookId || '',
           });
           set(state => ({ notes: [note, ...state.notes], selectedNote: note }));
-        } catch {
-          // ignore
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Failed to create note';
+          set({ connectionError: msg });
         }
       },
 

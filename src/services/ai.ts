@@ -190,8 +190,12 @@ class AIService {
     let fullText = '';
     let streamDone = false;
 
+    const CHUNK_TIMEOUT_MS = 60_000;
     while (!streamDone) {
-      const { done, value } = await reader.read();
+      const timeoutSignal = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Stream read timeout — no data for 60s')), CHUNK_TIMEOUT_MS)
+      );
+      const { done, value } = await Promise.race([reader.read(), timeoutSignal]);
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
@@ -282,7 +286,8 @@ class AIService {
 
     if (onChunk) {
       // SSE stream: each `data: {...}` line is a candidate chunk
-      const reader = response.body!.getReader();
+      if (!response.body) throw new Error('Response body is null — Gemini streaming not supported');
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = '';
       let buffer = '';

@@ -1,5 +1,10 @@
 import type { JoplinNote } from '../types';
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 class ExportService {
   // Export single note to Markdown
   noteToMarkdown(note: JoplinNote, includeMetadata = true): string {
@@ -14,7 +19,10 @@ class ExportService {
       md += `updated: ${updated.toISOString()}\n`;
       if (note.tags?.length) {
         md += `tags: [${note.tags.map(t => {
-          const safe = t.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
+          const safe = t.title
+            .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            .replace(/\n/g, '\\n').replace(/\r/g, '')
+            .replace(/:/g, '&#58;');
           return `"${safe}"`;
         }).join(', ')}]\n`;
       }
@@ -67,12 +75,13 @@ class ExportService {
       throw new Error('Could not open print window. Please allow popups.');
     }
 
+    const safeTitle = escapeHtml(note.title);
     printWindow.document.write(`
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${note.title}</title>
+  <title>${safeTitle}</title>
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -122,10 +131,10 @@ class ExportService {
   </style>
 </head>
 <body>
-  <h1>${note.title}</h1>
+  <h1>${safeTitle}</h1>
   <div class="meta">
     <span>Created: ${new Date(note.created_time).toLocaleDateString()}</span>
-    ${note.tags?.length ? `<span> · Tags: ${note.tags.map(t => t.title).join(', ')}</span>` : ''}
+    ${note.tags?.length ? `<span> · Tags: ${note.tags.map(t => escapeHtml(t.title)).join(', ')}</span>` : ''}
   </div>
   ${html}
 </body>
@@ -142,12 +151,13 @@ class ExportService {
   async downloadHTML(note: JoplinNote) {
     const { marked } = await import('marked');
     const html = await marked(note.body);
+    const safeTitle = escapeHtml(note.title);
 
     const fullHTML = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${note.title}</title>
+  <title>${safeTitle}</title>
   <style>
     body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
     pre { background: #f4f4f4; padding: 16px; border-radius: 4px; overflow-x: auto; }
@@ -156,7 +166,7 @@ class ExportService {
   </style>
 </head>
 <body>
-  <h1>${note.title}</h1>
+  <h1>${safeTitle}</h1>
   ${html}
 </body>
 </html>`;

@@ -80,7 +80,11 @@ export function NoteEditor() {
     });
 
     viewRef.current = view;
-    return () => { view.destroy(); viewRef.current = null; };
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      view.destroy();
+      viewRef.current = null;
+    };
   }, []);
 
   // Update editor content when note changes

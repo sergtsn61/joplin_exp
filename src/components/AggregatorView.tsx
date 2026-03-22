@@ -30,7 +30,7 @@ export function AggregatorView() {
     if (search.trim()) {
       const q = search.toLowerCase();
       notes = notes.filter(n =>
-        n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)
+        (n.title ?? '').toLowerCase().includes(q) || (n.body ?? '').toLowerCase().includes(q)
       );
     }
     notes.sort((a, b) => {
@@ -166,7 +166,7 @@ function NoteRow({
           <p className="text-sm font-medium truncate">{note.title || '(Untitled)'}</p>
           {!expanded && (
             <p className="text-xs text-gray-400 truncate mt-0.5">
-              {note.body.replace(/[#*`>\-]/g, '').trim().substring(0, 100)}
+              {(note.body ?? '').replace(/[#*`>\-]/g, '').trim().substring(0, 100)}
             </p>
           )}
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
