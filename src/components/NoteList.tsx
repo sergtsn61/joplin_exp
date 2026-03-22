@@ -12,9 +12,11 @@ import {
   CheckCheck,
   X,
   Sparkles,
+  Bot,
 } from 'lucide-react';
 import type { SortField } from '../types';
 import { NotebookCompiler } from './NotebookCompiler';
+import { NotebookAgentModal } from './NotebookAgentModal';
 
 function formatDate(ts: number): string {
   const d = new Date(ts);
@@ -52,6 +54,7 @@ export function NoteList() {
   const [multiMode, setMultiMode] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showCompiler, setShowCompiler] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -106,14 +109,24 @@ export function NoteList() {
         <div className="ml-auto flex items-center gap-1">
           <span className="text-xs text-gray-600">{notes.length}</span>
           {notes.length > 1 && (filter.notebookId || filter.tagIds.length > 0) && (
-            <button
-              onClick={() => setShowCompiler(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 hover:text-purple-300 transition-colors"
-              title="Скомпилировать в документ с помощью AI"
-            >
-              <Sparkles className="w-3 h-3" />
-              AI
-            </button>
+            <>
+              <button
+                onClick={() => setShowAgent(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 hover:text-emerald-300 transition-colors"
+                title="AI Agent — обработать каждую заметку"
+              >
+                <Bot className="w-3 h-3" />
+                Agent
+              </button>
+              <button
+                onClick={() => setShowCompiler(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 hover:text-purple-300 transition-colors"
+                title="Скомпилировать в документ с помощью AI"
+              >
+                <Sparkles className="w-3 h-3" />
+                AI
+              </button>
+            </>
           )}
           <button
             onClick={() => { setMultiMode(v => !v); setSelected(new Set()); }}
@@ -166,6 +179,8 @@ export function NoteList() {
 
       {/* AI Compiler modal */}
       {showCompiler && <NotebookCompiler onClose={() => setShowCompiler(false)} />}
+      {/* AI Agent modal */}
+      {showAgent && <NotebookAgentModal onClose={() => setShowAgent(false)} />}
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
