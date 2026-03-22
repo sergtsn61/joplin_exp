@@ -56,8 +56,7 @@ function defaultContextSize(model: string, provider: string): number {
   }
   if (provider === 'openrouter') return 128000;
   if (provider === 'gemini') {
-    if (model.includes('1.5')) return 1000000;
-    return 1000000; // gemini-2.0-flash also 1M
+    return 1000000; // all Gemini 2.x/2.5 models: 1M context
   }
   // Ollama — local models vary widely, default 8k
   if (model.includes('llama3')) return 8192;

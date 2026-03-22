@@ -248,7 +248,7 @@ class AIService {
   ): Promise<string> {
     if (!config.apiKey) throw new Error('Gemini API key is required');
 
-    const model = config.model || 'gemini-2.0-flash';
+    const model = config.model || 'gemini-2.5-flash';
     const systemMsg = messages.find(m => m.role === 'system');
     const userMessages = messages.filter(m => m.role !== 'system');
 
@@ -350,10 +350,10 @@ class AIService {
       ],
       ollama: [],
       gemini: [
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini' },
+        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'gemini' },
         { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini' },
-        { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'gemini' },
-        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini' },
-        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini' },
       ],
       openrouter: [
         { id: 'anthropic/claude-haiku-4-5-20251001', name: 'Claude Haiku (OpenRouter)', provider: 'openrouter' },
