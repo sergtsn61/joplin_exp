@@ -90,23 +90,23 @@ export function NoteList() {
   return (
     <div className="flex flex-col h-full bg-gray-900 border-r border-gray-800">
       {/* Sort Bar */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-800">
-        <span className="text-xs text-gray-500 mr-1">Sort:</span>
+      <div className="flex items-center gap-0.5 px-2 py-2 border-b border-gray-800 min-w-0">
+        <span className="text-xs text-gray-500 mr-0.5 shrink-0">Sort:</span>
         {(['title', 'updated_time', 'created_time'] as SortField[]).map((field) => (
           <button
             key={field}
             onClick={() => handleSort(field)}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+            className={`flex items-center gap-0.5 px-1.5 py-1 rounded text-xs transition-colors shrink-0 ${
               sort.field === field ? 'bg-blue-600/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'
             }`}
           >
             {field === 'title' && 'A-Z'}
-            {field === 'updated_time' && 'Updated'}
-            {field === 'created_time' && 'Created'}
+            {field === 'updated_time' && 'Upd'}
+            {field === 'created_time' && 'New'}
             {sort.field === field && <SortIcon className="w-3 h-3" />}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-0.5 shrink-0">
           <span className="text-xs text-gray-600">{notes.length}</span>
           {notes.length > 0 && (
             <>
