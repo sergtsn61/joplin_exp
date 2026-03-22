@@ -114,3 +114,51 @@ export interface ChatMessage {
   timestamp: number;
   noteContext?: string;
 }
+
+// Multi-instance types
+export interface JoplinInstance {
+  id: string;
+  name: string;
+  config: JoplinConfig;
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: string | null;
+}
+
+export interface AggregatedNote extends JoplinNote {
+  instanceId: string;
+  instanceName: string;
+}
+
+// Deduplication types
+export type DuplicateMethod = 'hash' | 'title' | 'ai';
+
+export interface DuplicateGroup {
+  id: string;
+  method: DuplicateMethod;
+  notes: AggregatedNote[];
+  similarity?: number; // 0-1 for fuzzy matches
+}
+
+// Topic classification types
+export interface NoteTopicMap {
+  noteId: string;
+  instanceId: string;
+  topic: string;
+  confidence?: number;
+}
+
+export interface TopicGroup {
+  topic: string;
+  notes: AggregatedNote[];
+}
+
+// Notebook builder types
+export interface BuildTarget {
+  instanceId: string;
+  notebookTitle: string;
+  topics: string[];
+  notes: AggregatedNote[];
+}
+
+export type AppView = 'editor' | 'aggregator' | 'duplicates' | 'topics' | 'builder';
