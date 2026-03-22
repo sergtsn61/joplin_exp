@@ -301,7 +301,7 @@ class AIService {
     ];
     const result = await this.chat(messages, config);
     try {
-      const match = result.match(/\[.*\]/s);
+      const match = result.match(/\[.*?\]/s);
       if (match) return JSON.parse(match[0]);
     } catch {
       // fallback

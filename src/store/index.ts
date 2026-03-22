@@ -163,7 +163,14 @@ export const useStore = create<AppState>()(
           if (filter.notebookId) {
             notes = await joplinService.getNotesByNotebook(filter.notebookId);
           } else if (filter.tagIds.length > 0) {
-            notes = await joplinService.getNotesByTag(filter.tagIds[0]);
+            const tagNoteArrays = await Promise.all(
+              filter.tagIds.map(tagId => joplinService.getNotesByTag(tagId))
+            );
+            const noteMap = new Map<string, JoplinNote>();
+            for (const tagNotes of tagNoteArrays) {
+              for (const note of tagNotes) noteMap.set(note.id, note);
+            }
+            notes = Array.from(noteMap.values());
           } else if (filter.search) {
             notes = await joplinService.searchNotes(filter.search);
           } else {

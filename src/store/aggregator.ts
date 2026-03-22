@@ -121,8 +121,10 @@ export const useAggregatorStore = create<AggregatorState>()(
       },
 
       deleteNoteFromAggregated: (instanceId, noteId) => {
-        // Remove from local aggregated list; fire-and-forget delete from Joplin
-        aggregatorService.deleteNoteFromInstance(instanceId, noteId).catch(() => {});
+        // Optimistically remove from local list; log error if Joplin deletion fails
+        aggregatorService.deleteNoteFromInstance(instanceId, noteId).catch((err) => {
+          console.error(`Failed to delete note ${noteId} from instance ${instanceId}:`, err);
+        });
         set(state => ({
           aggregatedNotes: state.aggregatedNotes.filter(
             n => !(n.id === noteId && n.instanceId === instanceId)

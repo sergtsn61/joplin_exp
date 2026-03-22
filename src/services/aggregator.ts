@@ -102,22 +102,27 @@ class AggregatorService {
 
   async aggregateAllNotes(instances: JoplinInstance[]): Promise<AggregatedNote[]> {
     const results: AggregatedNote[] = [];
+    const connected = instances.filter(inst => inst.isConnected);
 
-    await Promise.allSettled(
-      instances
-        .filter(inst => inst.isConnected)
-        .map(async (inst) => {
-          const client = this.clients.get(inst.id);
-          if (!client) return;
-          const notes = await client.getAllNotes();
-          const annotated: AggregatedNote[] = notes.map(n => ({
-            ...n,
-            instanceId: inst.id,
-            instanceName: inst.name,
-          }));
-          results.push(...annotated);
-        })
+    const settled = await Promise.allSettled(
+      connected.map(async (inst) => {
+        const client = this.clients.get(inst.id);
+        if (!client) throw new Error(`No client for instance ${inst.id}`);
+        const notes = await client.getAllNotes();
+        const annotated: AggregatedNote[] = notes.map(n => ({
+          ...n,
+          instanceId: inst.id,
+          instanceName: inst.name,
+        }));
+        results.push(...annotated);
+      })
     );
+
+    for (const result of settled) {
+      if (result.status === 'rejected') {
+        console.error('Failed to fetch notes from instance:', result.reason);
+      }
+    }
 
     return results;
   }

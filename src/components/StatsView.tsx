@@ -56,8 +56,11 @@ export function StatsView() {
     });
     const maxActivity = Math.max(...activityDays.map(d => d.count), 1);
 
-    // Tag usage (simulated from note bodies for quick stats)
-    const tagStats = tags.slice(0, 8).map(t => ({ name: t.title, count: notes.filter(n => n.body.includes(t.title)).length + 1 }));
+    // Tag usage: count notes that carry each tag (via note.tags array if available)
+    const tagStats = tags.slice(0, 8).map(t => ({
+      name: t.title,
+      count: notes.filter(n => n.tags?.some(nt => nt.id === t.id)).length,
+    }));
     tagStats.sort((a, b) => b.count - a.count);
 
     return { totalWords, totalChars, todos, doneTodos, notebookStats, largest, activityDays, maxActivity, tagStats };

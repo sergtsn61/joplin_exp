@@ -9,7 +9,7 @@ export function ConnectionSetup() {
   const [token, setToken] = useState(settings.joplin.token);
 
   const handleConnect = async () => {
-    const config = { host, port: parseInt(port), token };
+    const config = { host, port: parseInt(port, 10), token };
     updateSettings({ joplin: config });
     await connect(config);
   };
