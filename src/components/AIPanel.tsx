@@ -4,7 +4,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   Send,
-  Trash2,
   Bot,
   User,
   Loader2,
@@ -73,33 +72,24 @@ export function AIPanel() {
   return (
     <div className="flex flex-col h-full bg-gray-900 border-l border-gray-800 w-80 shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-purple-600/20 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">AI Assistant</h3>
-            <p className="text-xs text-gray-500">
-              {settings.ai.provider} · {settings.ai.model.split('/').pop()}
-            </p>
-          </div>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800">
+        <div className="w-6 h-6 rounded-md bg-purple-600/20 flex items-center justify-center shrink-0">
+          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-white leading-tight">AI Assistant</h3>
+          <p className="text-xs text-gray-500 truncate">
+            {settings.ai.provider} · {settings.ai.model.split('/').pop()}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={clearChat}
-            className="flex items-center gap-1 px-2 py-1 text-gray-400 hover:text-white hover:bg-purple-700 rounded-lg transition-colors text-xs font-medium"
+            className="flex items-center gap-1 px-2 py-1 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-lg transition-colors text-xs font-medium"
             title="New chat"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
-            New chat
-          </button>
-          <button
-            onClick={clearChat}
-            className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
-            title="Clear chat"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
+            New
           </button>
           <button
             onClick={toggleAIPanel}
