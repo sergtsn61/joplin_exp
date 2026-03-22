@@ -292,8 +292,7 @@ export const useStore = create<AppState>()(
       setSort: (sort) => set({ sort }),
       setFilter: (filter) => {
         set(state => ({ filter: { ...state.filter, ...filter } }));
-        // Reload notes with new filter
-        setTimeout(() => get().loadNotes(), 0);
+        get().loadNotes();
       },
 
       // AI

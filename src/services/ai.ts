@@ -174,11 +174,13 @@ class AIService {
     onChunk: (chunk: string) => void,
     format: 'openai' | 'anthropic' | 'ollama'
   ): Promise<string> {
-    const reader = response.body!.getReader();
+    if (!response.body) throw new Error('Response body is null — streaming not supported');
+    const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let streamDone = false;
 
-    while (true) {
+    while (!streamDone) {
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -191,7 +193,7 @@ class AIService {
         if (format === 'openai') {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6);
-          if (data === '[DONE]') continue;
+          if (data === '[DONE]') { streamDone = true; break; }
           try {
             const parsed = JSON.parse(data);
             text = parsed.choices?.[0]?.delta?.content || '';

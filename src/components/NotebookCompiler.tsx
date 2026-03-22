@@ -222,45 +222,33 @@ export function NotebookCompiler({ onClose }: Props) {
 
   const stop = () => { abortRef.current = true; setIsGenerating(false); };
 
-  // ── Generate (initial)
-  const generate = async () => {
-    if (selectedIds.size === 0) { setError('Выберите хотя бы одну заметку'); return; }
+  // ── Shared streaming helper — prevents code duplication between generate/refine
+  const runStream = async (
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+    errorMsg: string,
+  ) => {
     setIsGenerating(true);
     setError('');
     abortRef.current = false;
 
-    const langInstruction = language === 'auto'
-      ? 'Respond in the same language as the majority of the notes.'
-      : `Respond in ${language}.`;
+    const tempId = `streaming-${Date.now()}`;
+    let newIdx = 0;
 
-    const systemPrompt = [
-      localSystemPrompt.trim() ? localSystemPrompt.trim() : `You are an expert technical writer and knowledge organizer.
-Your task is to synthesize multiple fragmented notes into a single, coherent ${docType.prompt}.`,
-      langInstruction,
-      `Rules:
-- Do NOT just concatenate the notes — truly synthesize, reorganize, and rewrite
-- Remove duplicates and redundancies
-- Fill in logical gaps where possible
-- Use proper Markdown formatting with headers, lists, code blocks where appropriate
-- The result must read as a professional, standalone document`,
-      customInstructions ? `Additional instructions: ${customInstructions}` : '',
-    ].filter(Boolean).join('\n');
-
-    const userPrompt = `Here are ${selectedIds.size} notes from the notebook "${notebookName}":\n\n${buildCorpus()}\n\nPlease compose a ${docType.prompt} from all this material.`;
-
-    let result = '';
-    // Temp version for streaming
-    const tempId = 'streaming';
+    // Add temp version; capture its index atomically to avoid stale-closure race
     setVersions(prev => {
-      const v: DocVersion = { id: tempId, label: `v${prev.length + 1}`, content: '', ts: new Date() };
-      const next = [...prev.slice(0, versionIdx + 1), v];
-      setVersionIdx(next.length - 1);
+      const cutAt = versionIdx + 1; // capture before setState batch
+      const label = `v${cutAt + 1}`;
+      const v: DocVersion = { id: tempId, label, content: '', ts: new Date() };
+      const next = [...prev.slice(0, cutAt), v];
+      newIdx = next.length - 1;
       return next;
     });
+    setVersionIdx(prev => prev + 1);
 
+    let result = '';
     try {
       await aiService.chat(
-        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+        messages,
         { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize },
         (chunk) => {
           if (abortRef.current) return;
@@ -268,25 +256,47 @@ Your task is to synthesize multiple fragmented notes into a single, coherent ${d
           setVersions(prev => prev.map(v => v.id === tempId ? { ...v, content: result } : v));
         }
       );
-      // Finalize label
       setVersions(prev => prev.map(v => v.id === tempId ? { ...v, id: crypto.randomUUID() } : v));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка генерации');
+      setError(e instanceof Error ? e.message : errorMsg);
       setVersions(prev => prev.filter(v => v.id !== tempId));
       setVersionIdx(prev => Math.max(0, prev - 1));
     } finally {
       setIsGenerating(false);
     }
+    return newIdx;
   };
 
-  // ── Refine (iterative)
+  // ── Generate (initial compilation)
+  const generate = async () => {
+    if (selectedIds.size === 0) { setError('Выберите хотя бы одну заметку'); return; }
+
+    const langInstruction = language === 'auto'
+      ? 'Respond in the same language as the majority of the notes.'
+      : `Respond in ${language}.`;
+
+    const systemPrompt = [
+      localSystemPrompt.trim()
+        ? localSystemPrompt.trim()
+        : `You are an expert technical writer and knowledge organizer.\nYour task is to synthesize multiple fragmented notes into a single, coherent ${docType.prompt}.`,
+      langInstruction,
+      `Rules:\n- Do NOT just concatenate the notes — truly synthesize, reorganize, and rewrite\n- Remove duplicates and redundancies\n- Fill in logical gaps where possible\n- Use proper Markdown formatting with headers, lists, code blocks where appropriate\n- The result must read as a professional, standalone document`,
+      customInstructions ? `Additional instructions: ${customInstructions}` : '',
+    ].filter(Boolean).join('\n');
+
+    const userPrompt = `Here are ${selectedIds.size} notes from the notebook "${notebookName}":\n\n${buildCorpus()}\n\nPlease compose a ${docType.prompt} from all this material.`;
+
+    await runStream(
+      [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+      'Ошибка генерации',
+    );
+  };
+
+  // ── Refine (iterative editing)
   const refine = async () => {
     if (!refineInput.trim() || !currentOutput) return;
     const instruction = refineInput.trim();
     setRefineInput('');
-    setIsGenerating(true);
-    setError('');
-    abortRef.current = false;
 
     const systemPrompt = `You are an expert editor. You will be given a document and an editing instruction.
 Apply the instruction to improve the document. Return the COMPLETE revised document in Markdown.
@@ -295,34 +305,10 @@ Do not add meta-commentary — just return the revised document.`;
 
     const userPrompt = `Here is the current document:\n\n${currentOutput}\n\n---\nEditing instruction: ${instruction}`;
 
-    let result = '';
-    const tempId = 'streaming-refine';
-    const newLabel = `v${versions.length + 1}`;
-    setVersions(prev => {
-      const v: DocVersion = { id: tempId, label: newLabel, content: '', ts: new Date() };
-      const next = [...prev.slice(0, versionIdx + 1), v];
-      setVersionIdx(next.length - 1);
-      return next;
-    });
-
-    try {
-      await aiService.chat(
-        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-        { ...settings.ai, temperature: localTemp, topP: localTopP, maxTokens: localMaxTokens, contextSize: localContextSize },
-        (chunk) => {
-          if (abortRef.current) return;
-          result += chunk;
-          setVersions(prev => prev.map(v => v.id === tempId ? { ...v, content: result } : v));
-        }
-      );
-      setVersions(prev => prev.map(v => v.id === tempId ? { ...v, id: crypto.randomUUID() } : v));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка редактирования');
-      setVersions(prev => prev.filter(v => v.id !== tempId));
-      setVersionIdx(prev => Math.max(0, prev - 1));
-    } finally {
-      setIsGenerating(false);
-    }
+    await runStream(
+      [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+      'Ошибка редактирования',
+    );
   };
 
   const handleRefineKey = (e: React.KeyboardEvent) => {
@@ -338,15 +324,19 @@ Do not add meta-commentary — just return the revised document.`;
 
   const saveNote = async () => {
     if (!currentOutput) return;
-    const title = `[AI] ${docType.label}: ${notebookName} (${versions[versionIdx]?.label})`;
-    await createNote(title);
-    const store = useStore.getState();
-    if (store.selectedNote) {
-      await joplinService.updateNote(store.selectedNote.id, { body: currentOutput });
-      store.openNote(store.selectedNote.id);
+    try {
+      const title = `[AI] ${docType.label}: ${notebookName} (${versions[versionIdx]?.label})`;
+      await createNote(title);
+      const store = useStore.getState();
+      if (store.selectedNote) {
+        await joplinService.updateNote(store.selectedNote.id, { body: currentOutput });
+        store.openNote(store.selectedNote.id);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось сохранить заметку');
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
   };
 
   // ── Templates

@@ -59,19 +59,6 @@ export interface AIMessage {
   content: string;
 }
 
-export interface AIRequest {
-  messages: AIMessage[];
-  config: AIConfig;
-}
-
-export interface AIResponse {
-  content: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-  };
-}
-
 // App state types
 export type ViewMode = 'editor' | 'preview' | 'split';
 export type SortField = 'title' | 'created_time' | 'updated_time';
