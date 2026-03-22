@@ -95,6 +95,14 @@ export function NotebookAgentModal({ onClose }: Props) {
       ));
       setActiveTab('after');
 
+      // Fetch full body from Joplin (list API may return truncated body)
+      let fullNote = note;
+      try {
+        fullNote = await joplinService.getNote(note.id);
+      } catch {
+        // fall back to list body if fetch fails
+      }
+
       const messages = [
         {
           role: 'system' as const,
@@ -102,7 +110,7 @@ export function NotebookAgentModal({ onClose }: Props) {
         },
         {
           role: 'user' as const,
-          content: `Instruction: ${instruction.trim()}\n\n---\n\n${note.body ?? ''}`,
+          content: `Instruction: ${instruction.trim()}\n\n---\n\n${fullNote.body ?? ''}`,
         },
       ];
 

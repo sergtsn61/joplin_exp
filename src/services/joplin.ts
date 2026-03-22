@@ -145,13 +145,22 @@ class JoplinService {
 
   async getNotesByNotebook(notebookId: string): Promise<JoplinNote[]> {
     this.ensureConnected();
-    const { data } = await this.client!.get(`/folders/${notebookId}/notes`, {
-      params: {
-        fields: 'id,title,body,created_time,updated_time,parent_id,is_todo,todo_completed',
-        limit: 100,
-      },
-    });
-    return data.items || [];
+    const notes: JoplinNote[] = [];
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+      const { data } = await this.client!.get(`/folders/${notebookId}/notes`, {
+        params: {
+          fields: 'id,title,body,created_time,updated_time,parent_id,is_todo,todo_completed',
+          limit: 100,
+          page,
+        },
+      });
+      notes.push(...(data.items || []));
+      hasMore = data.has_more ?? false;
+      page++;
+    }
+    return notes;
   }
 
   // Tags
