@@ -13,6 +13,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  MessageSquarePlus,
 } from 'lucide-react';
 
 function CopyButton({ text }: { text: string }) {
@@ -85,6 +86,14 @@ export function AIPanel() {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={clearChat}
+            className="flex items-center gap-1 px-2 py-1 text-gray-400 hover:text-white hover:bg-purple-700 rounded-lg transition-colors text-xs font-medium"
+            title="New chat"
+          >
+            <MessageSquarePlus className="w-3.5 h-3.5" />
+            New chat
+          </button>
           <button
             onClick={clearChat}
             className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"

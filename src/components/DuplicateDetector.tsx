@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Copy, Trash2, Loader2, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
+import { Copy, Trash2, Loader2, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Wand2, FilePlus } from 'lucide-react';
 import { useAggregatorStore } from '../store/aggregator';
 import { findByHash, findByTitle, findByAI, deduplicateGroups } from '../services/deduplication';
 import { aiService } from '../services/ai';
+import { joplinService } from '../services/joplin';
+import { useStore } from '../store';
 import type { DuplicateGroup, DuplicateMethod, AggregatedNote } from '../types';
 
 const METHOD_LABELS: Record<DuplicateMethod, string> = {
@@ -194,8 +196,24 @@ function DuplicateGroupCard({
   settings: { ai: import('../types').AIConfig };
   onMerged: (groupId: string, mergedBody: string) => void;
 }) {
+  const { isConnected } = useStore();
   const [isMerging, setIsMerging] = useState(false);
   const [mergedPreview, setMergedPreview] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedTitle, setSavedTitle] = useState<string | null>(null);
+
+  const handleSaveAsNew = async () => {
+    if (!mergedPreview) return;
+    setIsSaving(true);
+    const title = group.notes[0].title + ' (merged)';
+    try {
+      await joplinService.createNote({ title, body: mergedPreview });
+      setSavedTitle(title);
+    } catch {
+      setSavedTitle('Error saving note');
+    }
+    setIsSaving(false);
+  };
 
   const handleAIMerge = async () => {
     setIsMerging(true);
@@ -275,15 +293,28 @@ function DuplicateGroupCard({
               <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto">
                 {mergedPreview}
               </pre>
-              <div className="flex gap-2">
+              {savedTitle && (
+                <p className="text-xs text-green-400">✓ Saved as: {savedTitle}</p>
+              )}
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => { onMerged(group.id, mergedPreview); setMergedPreview(null); }}
                   className="flex-1 py-1 bg-purple-700 hover:bg-purple-600 rounded text-xs transition-colors"
                 >
                   Use merged & delete originals
                 </button>
+                {isConnected && (
+                  <button
+                    onClick={handleSaveAsNew}
+                    disabled={isSaving || !!savedTitle}
+                    className="flex-1 flex items-center justify-center gap-1 py-1 bg-green-800 hover:bg-green-700 disabled:opacity-50 rounded text-xs transition-colors"
+                  >
+                    {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <FilePlus className="w-3 h-3" />}
+                    Save as new note
+                  </button>
+                )}
                 <button
-                  onClick={() => setMergedPreview(null)}
+                  onClick={() => { setMergedPreview(null); setSavedTitle(null); }}
                   className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors"
                 >
                   Discard
