@@ -114,7 +114,11 @@ class AIService {
           temperature: config.temperature ?? 0.7,
           num_predict: config.maxTokens ?? 2048,
           ...(config.topP !== undefined && { top_p: config.topP }),
-          ...(config.contextSize !== undefined && { num_ctx: config.contextSize }),
+          ...(config.contextSize !== undefined
+            ? { num_ctx: config.contextSize }
+            : config.ollamaNumCtx !== undefined
+              ? { num_ctx: config.ollamaNumCtx }
+              : {}),
         },
         stream: !!onChunk,
       }),

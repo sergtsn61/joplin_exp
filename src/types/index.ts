@@ -47,6 +47,7 @@ export interface AIConfig {
   model: string;
   apiKey?: string;
   ollamaHost?: string;
+  ollamaNumCtx?: number;
   temperature?: number;
   maxTokens?: number;
   topP?: number;

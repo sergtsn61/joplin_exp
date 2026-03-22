@@ -39,7 +39,6 @@ export function NoteList() {
     isLoadingNotes,
     selectedNote,
     sort,
-    filter,
     setSort,
     openNote,
     getFilteredNotes,
