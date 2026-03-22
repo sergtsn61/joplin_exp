@@ -162,3 +162,29 @@ export interface BuildTarget {
 }
 
 export type AppView = 'editor' | 'aggregator' | 'duplicates' | 'topics' | 'builder';
+
+// Joplin revision (version history)
+export interface JoplinRevision {
+  id: string;
+  item_id: string;
+  item_updated_time: number;
+  metadata?: string;
+}
+
+// Joplin resource (attachment)
+export interface JoplinResource {
+  id: string;
+  title: string;
+  mime: string;
+  size: number;
+  file_extension: string;
+}
+
+// Note template
+export interface NoteTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  title: string;
+  body: string;
+}

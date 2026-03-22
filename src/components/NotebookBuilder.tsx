@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
-import { BookOpen, Plus, Trash2, Download, Loader2, CheckCircle, FolderOpen } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Download, Loader2, CheckCircle, FolderOpen, Archive } from 'lucide-react';
 import { useAggregatorStore } from '../store/aggregator';
 import { groupByTopics } from '../services/classifier';
 import { aggregatorService } from '../services/aggregator';
 import { marked } from 'marked';
+import JSZip from 'jszip';
 import type { AggregatedNote, TopicGroup } from '../types';
 
 interface BuildPlan {
@@ -108,6 +109,34 @@ export function NotebookBuilder() {
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const exportToZip = async () => {
+    const zip = new JSZip();
+    for (const plan of plans) {
+      const notes = getNotesForTopics(plan.topics);
+      const folder = zip.folder(plan.notebookTitle.replace(/[/\\?%*:|"<>]/g, '_')) || zip;
+      // Group by topic inside the notebook folder
+      for (const topic of plan.topics) {
+        const topicNotes = notes.filter(n => {
+          const tm = topicMaps.find(m => m.noteId === n.id && m.instanceId === n.instanceId);
+          return tm?.topic === topic;
+        });
+        const topicFolder = folder.folder(topic.replace(/[/\\?%*:|"<>]/g, '_')) || folder;
+        for (const note of topicNotes) {
+          const safeName = (note.title || 'untitled').replace(/[/\\?%*:|"<>]/g, '_').substring(0, 80);
+          const frontmatter = `---\ntitle: "${note.title}"\nsource: ${note.instanceName}\nupdated: ${new Date(note.updated_time).toISOString()}\ntopic: ${topic}\n---\n\n`;
+          topicFolder.file(`${safeName}.md`, frontmatter + note.body);
+        }
+      }
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'joplin-export.zip';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const exportToPDF = () => {
@@ -293,6 +322,14 @@ export function NotebookBuilder() {
             title="Export PDF"
           >
             <Download className="w-4 h-4" /> PDF
+          </button>
+          <button
+            onClick={exportToZip}
+            disabled={plans.length === 0}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg text-sm transition-colors"
+            title="Export ZIP"
+          >
+            <Archive className="w-4 h-4" /> ZIP
           </button>
         </div>
       </div>

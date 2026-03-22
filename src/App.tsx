@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from './store';
 import { ConnectionSetup } from './components/ConnectionSetup';
 import { Sidebar } from './components/Sidebar';
@@ -19,6 +19,8 @@ import {
   Copy,
   Tag,
   BookOpen,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import type { AppView } from './types';
 
@@ -31,9 +33,22 @@ const NAV_ITEMS: { view: AppView; icon: React.ReactNode; label: string }[] = [
 ];
 
 function App() {
-  const { isConnected, sidebarOpen, aiPanelOpen, toggleSidebar, toggleAIPanel } = useStore();
+  const { isConnected, sidebarOpen, aiPanelOpen, settings, toggleSidebar, toggleAIPanel, updateSettings } = useStore();
   const [appView, setAppView] = useState<AppView>('editor');
   const [showInstanceManager, setShowInstanceManager] = useState(false);
+
+  const isLight = settings.editor.theme === 'light';
+
+  // Apply theme class to root div
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return;
+    root.classList.toggle('theme-light', isLight);
+  }, [isLight]);
+
+  const toggleTheme = () => {
+    updateSettings({ editor: { ...settings.editor, theme: isLight ? 'dark' : 'light' } });
+  };
 
   if (!isConnected) {
     return <ConnectionSetup />;
@@ -58,8 +73,16 @@ function App() {
           </button>
         ))}
 
-        {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={isLight ? 'Switch to Dark' : 'Switch to Light'}
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+        >
+          {isLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+        </button>
 
         {/* Instance manager toggle */}
         <button
@@ -85,7 +108,6 @@ function App() {
       {/* Main content */}
       {appView === 'editor' ? (
         <>
-          {/* Sidebar toggle for mobile */}
           <div className="fixed top-2 left-16 z-30 flex gap-1 md:hidden">
             <button
               onClick={toggleSidebar}
@@ -95,25 +117,19 @@ function App() {
             </button>
           </div>
 
-          {/* Sidebar */}
-          <div
-            className={`transition-all duration-200 shrink-0 overflow-hidden ${sidebarOpen ? 'w-56' : 'w-0'}`}
-          >
+          <div className={`transition-all duration-200 shrink-0 overflow-hidden ${sidebarOpen ? 'w-56' : 'w-0'}`}>
             {sidebarOpen && <Sidebar />}
           </div>
 
-          {/* Note List */}
           <div className="w-64 shrink-0 overflow-hidden">
             <NoteList />
           </div>
 
-          {/* Editor */}
           <div className="flex-1 flex overflow-hidden min-w-0">
             <NoteEditor />
             {aiPanelOpen && <AIPanel />}
           </div>
 
-          {/* Floating AI toggle */}
           {!aiPanelOpen && (
             <button
               onClick={toggleAIPanel}
@@ -125,21 +141,13 @@ function App() {
           )}
         </>
       ) : appView === 'aggregator' ? (
-        <div className="flex-1 overflow-hidden">
-          <AggregatorView />
-        </div>
+        <div className="flex-1 overflow-hidden"><AggregatorView /></div>
       ) : appView === 'duplicates' ? (
-        <div className="flex-1 overflow-hidden">
-          <DuplicateDetector />
-        </div>
+        <div className="flex-1 overflow-hidden"><DuplicateDetector /></div>
       ) : appView === 'topics' ? (
-        <div className="flex-1 overflow-hidden">
-          <TopicClassifier />
-        </div>
+        <div className="flex-1 overflow-hidden"><TopicClassifier /></div>
       ) : appView === 'builder' ? (
-        <div className="flex-1 overflow-hidden">
-          <NotebookBuilder />
-        </div>
+        <div className="flex-1 overflow-hidden"><NotebookBuilder /></div>
       ) : null}
     </div>
   );

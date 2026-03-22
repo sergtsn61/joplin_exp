@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { JoplinConfig, JoplinNote, JoplinNotebook, JoplinTag } from '../types';
+import type { JoplinConfig, JoplinNote, JoplinNotebook, JoplinTag, JoplinRevision, JoplinResource } from '../types';
 
 class JoplinService {
   private client: AxiosInstance | null = null;
@@ -196,6 +196,37 @@ class JoplinService {
       },
     });
     return data.items || [];
+  }
+
+  // Revisions (version history)
+  async getRevisions(noteId: string): Promise<JoplinRevision[]> {
+    this.ensureConnected();
+    const { data } = await this.client!.get(`/notes/${noteId}/revisions`, {
+      params: { fields: 'id,item_id,item_updated_time,metadata', limit: 50 },
+    });
+    return data.items || [];
+  }
+
+  async getRevisionNote(noteId: string, revisionId: string): Promise<{ title: string; body: string }> {
+    this.ensureConnected();
+    const { data } = await this.client!.get(`/notes/${noteId}/revisions/${revisionId}`, {
+      params: { fields: 'title,body' },
+    });
+    return data;
+  }
+
+  // Attachments (resources)
+  async getNoteResources(noteId: string): Promise<JoplinResource[]> {
+    this.ensureConnected();
+    const { data } = await this.client!.get(`/notes/${noteId}/resources`, {
+      params: { fields: 'id,title,mime,size,file_extension', limit: 100 },
+    });
+    return data.items || [];
+  }
+
+  getResourceUrl(resourceId: string): string {
+    if (!this.config) return '';
+    return `http://${this.config.host}:${this.config.port}/resources/${resourceId}/file?token=${this.config.token}`;
   }
 
   getConfig(): JoplinConfig | null {

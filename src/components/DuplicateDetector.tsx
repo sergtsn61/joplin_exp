@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Copy, Trash2, Loader2, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Trash2, Loader2, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
 import { useAggregatorStore } from '../store/aggregator';
 import { findByHash, findByTitle, findByAI, deduplicateGroups } from '../services/deduplication';
+import { aiService } from '../services/ai';
 import type { DuplicateGroup, DuplicateMethod, AggregatedNote } from '../types';
 
 const METHOD_LABELS: Record<DuplicateMethod, string> = {
@@ -17,7 +18,7 @@ const METHOD_COLORS: Record<DuplicateMethod, string> = {
 };
 
 export function DuplicateDetector() {
-  const { aggregatedNotes, settings, deleteNoteFromAggregated } = useAggregatorStore();
+  const { aggregatedNotes, settings, deleteNoteFromAggregated, addAggregatedNote } = useAggregatorStore();
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -161,6 +162,14 @@ export function DuplicateDetector() {
             onToggle={() => setExpandedGroup(v => v === group.id ? null : group.id)}
             onKeep={note => handleKeep(group, note)}
             onDeleteAll={() => handleDeleteAll(group)}
+            settings={settings}
+            onMerged={(groupId, mergedBody) => {
+              // Keep first note as base, update its body, delete rest
+              const [keep, ...rest] = group.notes;
+              addAggregatedNote({ ...keep, body: mergedBody, title: keep.title + ' (merged)' });
+              for (const n of [keep, ...rest]) deleteNoteFromAggregated(n.instanceId, n.id);
+              setResolved(r => new Set([...r, groupId]));
+            }}
           />
         ))}
       </div>
@@ -174,13 +183,38 @@ function DuplicateGroupCard({
   onToggle,
   onKeep,
   onDeleteAll,
+  settings,
+  onMerged,
 }: {
   group: DuplicateGroup;
   expanded: boolean;
   onToggle: () => void;
   onKeep: (note: AggregatedNote) => void;
   onDeleteAll: () => void;
+  settings: { ai: import('../types').AIConfig };
+  onMerged: (groupId: string, mergedBody: string) => void;
 }) {
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergedPreview, setMergedPreview] = useState<string | null>(null);
+
+  const handleAIMerge = async () => {
+    setIsMerging(true);
+    setMergedPreview(null);
+    const prompt = `You are a note merging assistant. Merge the following duplicate notes into one comprehensive, well-structured note. Keep all unique information. Remove redundant parts. Output ONLY the merged note body in Markdown, no explanations.\n\n${group.notes.map((n, i) => `=== Note ${i + 1}: ${n.title} ===\n${n.body}`).join('\n\n')}`;
+    let result = '';
+    try {
+      await aiService.chat(
+        [{ role: 'user', content: prompt }],
+        { ...settings.ai, temperature: 0.3 },
+        (chunk) => { result += chunk; }
+      );
+      setMergedPreview(result);
+    } catch {
+      setMergedPreview('Error: AI failed to merge notes');
+    }
+    setIsMerging(false);
+  };
+
   return (
     <div className="border-b border-gray-800">
       <div
@@ -218,12 +252,45 @@ function DuplicateGroupCard({
               </div>
             </div>
           ))}
-          <button
-            onClick={onDeleteAll}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-red-900/40 hover:bg-red-900/60 border border-red-800 rounded-lg text-xs text-red-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Delete all in group
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleAIMerge}
+              disabled={isMerging}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-purple-900/40 hover:bg-purple-900/60 border border-purple-800 rounded-lg text-xs text-purple-300 transition-colors disabled:opacity-50"
+            >
+              {isMerging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+              Merge with AI
+            </button>
+            <button
+              onClick={onDeleteAll}
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-red-900/40 hover:bg-red-900/60 border border-red-800 rounded-lg text-xs text-red-400 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete all
+            </button>
+          </div>
+
+          {mergedPreview && (
+            <div className="p-3 bg-gray-900 rounded-lg border border-purple-800 space-y-2">
+              <p className="text-xs font-medium text-purple-300">AI Merged result:</p>
+              <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto">
+                {mergedPreview}
+              </pre>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { onMerged(group.id, mergedPreview); setMergedPreview(null); }}
+                  className="flex-1 py-1 bg-purple-700 hover:bg-purple-600 rounded text-xs transition-colors"
+                >
+                  Use merged & delete originals
+                </button>
+                <button
+                  onClick={() => setMergedPreview(null)}
+                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

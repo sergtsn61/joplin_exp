@@ -19,15 +19,24 @@ import {
   Tag,
   Loader2,
   Printer,
+  Maximize2,
+  Minimize2,
+  History,
+  Paperclip,
+  LayoutTemplate,
 } from 'lucide-react';
 import type { ViewMode } from '../types';
 import { exportService } from '../services/export';
 import { AIQuickActions } from './AIQuickActions';
+import { VersionHistory } from './VersionHistory';
+import { AttachmentsPanel } from './AttachmentsPanel';
+import { NoteTemplates } from './NoteTemplates';
+import { useHotkeys } from '../hooks/useHotkeys';
 
 const AUTOSAVE_DELAY = 2000;
 
 export function NoteEditor() {
-  const { selectedNote, viewMode, setViewMode, saveCurrentNote, updateNote, deleteNote, isSaving } = useStore();
+  const { selectedNote, viewMode, setViewMode, saveCurrentNote, updateNote, deleteNote, isSaving, createNote } = useStore();
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,6 +44,10 @@ export function NoteEditor() {
   const [titleEditing, setTitleEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showAttachments, setShowAttachments] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Initialize editor
   useEffect(() => {
@@ -55,7 +68,6 @@ export function NoteEditor() {
             if (update.docChanged) {
               const content = update.state.doc.toString();
               setLocalBody(content);
-              // Autosave
               if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
               saveTimerRef.current = setTimeout(() => {
                 saveCurrentNote(content);
@@ -68,11 +80,7 @@ export function NoteEditor() {
     });
 
     viewRef.current = view;
-
-    return () => {
-      view.destroy();
-      viewRef.current = null;
-    };
+    return () => { view.destroy(); viewRef.current = null; };
   }, []);
 
   // Update editor content when note changes
@@ -80,16 +88,11 @@ export function NoteEditor() {
     if (!selectedNote) return;
     setLocalTitle(selectedNote.title);
     setLocalBody(selectedNote.body);
-
     if (viewRef.current) {
       const current = viewRef.current.state.doc.toString();
       if (current !== selectedNote.body) {
         viewRef.current.dispatch({
-          changes: {
-            from: 0,
-            to: current.length,
-            insert: selectedNote.body,
-          },
+          changes: { from: 0, to: current.length, insert: selectedNote.body },
         });
       }
     }
@@ -114,11 +117,40 @@ export function NoteEditor() {
     }
   }, [selectedNote, deleteNote]);
 
+  const handleTemplateSelect = useCallback(async (title: string, body: string) => {
+    await createNote(title);
+    // After createNote, selectedNote will update — we patch the body via updateNote
+    // Small delay to ensure store is updated
+    setTimeout(() => saveCurrentNote(body), 100);
+    if (viewRef.current) {
+      viewRef.current.dispatch({
+        changes: { from: 0, to: viewRef.current.state.doc.length, insert: body },
+      });
+    }
+  }, [createNote, saveCurrentNote]);
+
+  // Global hotkeys
+  useHotkeys([
+    { key: 's', ctrl: true, handler: handleManualSave },
+    { key: 'F11', handler: () => setIsFullscreen(v => !v) },
+    { key: 'Escape', handler: () => { if (isFullscreen) setIsFullscreen(false); } },
+    { key: 'p', ctrl: true, handler: () => setViewMode(viewMode === 'preview' ? 'editor' : 'preview') },
+  ], [handleManualSave, isFullscreen, viewMode]);
+
   if (!selectedNote) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-gray-950 text-gray-600">
         <Edit3 className="w-12 h-12 mb-3 opacity-30" />
         <p className="text-sm">Select a note to start editing</p>
+        <button
+          onClick={() => setShowTemplates(true)}
+          className="mt-4 flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-400 transition-colors"
+        >
+          <LayoutTemplate className="w-4 h-4" /> New from template
+        </button>
+        {showTemplates && (
+          <NoteTemplates onSelect={handleTemplateSelect} onClose={() => setShowTemplates(false)} />
+        )}
       </div>
     );
   }
@@ -130,7 +162,7 @@ export function NoteEditor() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-950 min-w-0">
+    <div className={`flex-1 flex flex-col bg-gray-950 min-w-0 ${isFullscreen ? 'fixed inset-0 z-40' : ''}`}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-gray-900 shrink-0">
         {/* Title */}
@@ -143,10 +175,7 @@ export function NoteEditor() {
               onBlur={handleTitleSave}
               onKeyDown={e => {
                 if (e.key === 'Enter') handleTitleSave();
-                if (e.key === 'Escape') {
-                  setLocalTitle(selectedNote.title);
-                  setTitleEditing(false);
-                }
+                if (e.key === 'Escape') { setLocalTitle(selectedNote.title); setTitleEditing(false); }
               }}
               className="w-full bg-gray-800 text-white font-semibold text-base px-2 py-1 rounded border border-blue-500 focus:outline-none"
             />
@@ -168,9 +197,7 @@ export function NoteEditor() {
               onClick={() => setViewMode(mode)}
               title={label}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-                viewMode === mode
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-gray-200'
+                viewMode === mode ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -183,6 +210,16 @@ export function NoteEditor() {
         <div className="flex items-center gap-1">
           <AIQuickActions />
 
+          {/* Templates */}
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="p-1.5 text-gray-400 hover:text-green-400 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Templates"
+          >
+            <LayoutTemplate className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Save */}
           <button
             onClick={handleManualSave}
             disabled={isSaving}
@@ -190,6 +227,24 @@ export function NoteEditor() {
             title="Save (Ctrl+S)"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* History */}
+          <button
+            onClick={() => setShowVersionHistory(true)}
+            className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded-lg transition-colors"
+            title="Version History"
+          >
+            <History className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Attachments */}
+          <button
+            onClick={() => setShowAttachments(v => !v)}
+            className={`p-1.5 hover:bg-gray-800 rounded-lg transition-colors ${showAttachments ? 'text-blue-400' : 'text-gray-400 hover:text-blue-400'}`}
+            title="Attachments"
+          >
+            <Paperclip className="w-3.5 h-3.5" />
           </button>
 
           {/* Export menu */}
@@ -207,22 +262,19 @@ export function NoteEditor() {
                   onClick={() => { exportService.downloadMarkdown(selectedNote); setShowExport(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                 >
-                  <FileDown className="w-4 h-4" />
-                  Export .md
+                  <FileDown className="w-4 h-4" /> Export .md
                 </button>
                 <button
                   onClick={() => { exportService.downloadHTML(selectedNote); setShowExport(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                 >
-                  <FileDown className="w-4 h-4" />
-                  Export .html
+                  <FileDown className="w-4 h-4" /> Export .html
                 </button>
                 <button
                   onClick={() => { exportService.printToPDF(selectedNote); setShowExport(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
                 >
-                  <Printer className="w-4 h-4" />
-                  Print / PDF
+                  <Printer className="w-4 h-4" /> Print / PDF
                 </button>
               </div>
             )}
@@ -239,6 +291,15 @@ export function NoteEditor() {
             </div>
           )}
 
+          {/* Fullscreen */}
+          <button
+            onClick={() => setIsFullscreen(v => !v)}
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen (F11)'}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+          </button>
+
           <button
             onClick={handleDelete}
             className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-gray-800 rounded-lg transition-colors"
@@ -249,26 +310,33 @@ export function NoteEditor() {
         </div>
       </div>
 
-      {/* Editor / Preview */}
+      {/* Editor / Preview + Attachments */}
       <div className="flex-1 flex overflow-hidden">
-        {(viewMode === 'editor' || viewMode === 'split') && (
-          <div
-            ref={editorRef}
-            className={`flex flex-col overflow-hidden ${viewMode === 'split' ? 'w-1/2 border-r border-gray-800' : 'w-full'}`}
-            style={{ height: '100%' }}
-          />
-        )}
-
-        {(viewMode === 'preview' || viewMode === 'split') && (
-          <div
-            className={`overflow-y-auto p-6 ${viewMode === 'split' ? 'w-1/2' : 'w-full'} bg-gray-950`}
-          >
-            <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {localBody || selectedNote.body}
-              </ReactMarkdown>
+        <div className="flex-1 flex overflow-hidden">
+          {(viewMode === 'editor' || viewMode === 'split') && (
+            <div
+              ref={editorRef}
+              className={`flex flex-col overflow-hidden ${viewMode === 'split' ? 'w-1/2 border-r border-gray-800' : 'w-full'}`}
+              style={{ height: '100%' }}
+            />
+          )}
+          {(viewMode === 'preview' || viewMode === 'split') && (
+            <div className={`overflow-y-auto p-6 ${viewMode === 'split' ? 'w-1/2' : 'w-full'} bg-gray-950`}>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {localBody || selectedNote.body}
+                </ReactMarkdown>
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Attachments sidebar */}
+        {showAttachments && (
+          <AttachmentsPanel
+            noteId={selectedNote.id}
+            onClose={() => setShowAttachments(false)}
+          />
         )}
       </div>
 
@@ -277,9 +345,16 @@ export function NoteEditor() {
         <span>{localBody.split('\n').length} lines</span>
         <span>{localBody.length} chars</span>
         <span>{localBody.split(/\s+/).filter(Boolean).length} words</span>
+        {isFullscreen && <span className="text-gray-500">F11 / Esc — exit fullscreen</span>}
         {isSaving && <span className="text-blue-500 ml-auto">Saving...</span>}
         {!isSaving && <span className="ml-auto">Updated {new Date(selectedNote.updated_time).toLocaleString()}</span>}
       </div>
+
+      {/* Modals */}
+      {showVersionHistory && <VersionHistory onClose={() => setShowVersionHistory(false)} />}
+      {showTemplates && (
+        <NoteTemplates onSelect={handleTemplateSelect} onClose={() => setShowTemplates(false)} />
+      )}
     </div>
   );
 }

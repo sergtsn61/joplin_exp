@@ -38,6 +38,17 @@
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
+/* Light theme — CSS filter invert on root */
+.theme-light {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* Restore natural colors for media inside light theme */
+.theme-light img,
+.theme-light video,
+.theme-light .cm-editor {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 6px;

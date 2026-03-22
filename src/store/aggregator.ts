@@ -40,6 +40,9 @@ interface AggregatorState {
   // Delete a note from aggregated list (and optionally from Joplin)
   deleteNoteFromAggregated: (instanceId: string, noteId: string) => void;
 
+  // Add a synthetic note to aggregated list (e.g. AI-merged)
+  addAggregatedNote: (note: AggregatedNote) => void;
+
   // Settings passthrough
   updateAISettings: (ai: Partial<AppSettings['ai']>) => void;
 }
@@ -112,6 +115,10 @@ export const useAggregatorStore = create<AggregatorState>()(
       clearAggregated: () => set({ aggregatedNotes: [], topicMaps: [] }),
 
       setTopicMaps: (maps) => set({ topicMaps: maps }),
+
+      addAggregatedNote: (note) => {
+        set(state => ({ aggregatedNotes: [note, ...state.aggregatedNotes] }));
+      },
 
       deleteNoteFromAggregated: (instanceId, noteId) => {
         // Remove from local aggregated list; fire-and-forget delete from Joplin

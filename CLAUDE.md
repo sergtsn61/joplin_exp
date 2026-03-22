@@ -476,17 +476,58 @@ Running `target/debug/app`
 
 ---
 
+---
+
+### Этап 14 — Расширение функциональности (все roadmap пункты)
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Реализовано
+
+| Фича | Файл | Описание |
+|------|------|---------|
+| **ZIP-экспорт** | `NotebookBuilder.tsx` | JSZip — папки по темам, frontmatter в каждом .md |
+| **AI-слияние дублей** | `DuplicateDetector.tsx` | Кнопка "Merge with AI" → превью → применить |
+| **Горячие клавиши** | `hooks/useHotkeys.ts` | Ctrl+S (save), F11 (fullscreen), Ctrl+P (preview), Esc |
+| **Полноэкранный редактор** | `NoteEditor.tsx` | Кнопка Maximize2/Minimize2, fixed inset-0 |
+| **История версий** | `VersionHistory.tsx` | Joplin revisions API, превью + Restore |
+| **Шаблоны заметок** | `NoteTemplates.tsx` | 8 шаблонов: Meeting, Daily, Todo, Research, Idea, Project, Review, Bug |
+| **Вложения** | `AttachmentsPanel.tsx` | Sidebar с ресурсами, превью изображений/аудио/видео, download |
+| **Тёмная/светлая тема** | `App.tsx` + `index.css` | CSS filter invert, переключатель Sun/Moon в nav rail |
+
+#### Новые файлы
+
+| Файл | Назначение |
+|------|-----------|
+| `src/hooks/useHotkeys.ts` | Универсальный хук для глобальных горячих клавиш |
+| `src/components/VersionHistory.tsx` | Модал истории версий с diff preview и Restore |
+| `src/components/AttachmentsPanel.tsx` | Панель вложений заметки (ресурсы Joplin) |
+| `src/components/NoteTemplates.tsx` | Модал выбора шаблона (8 шаблонов) |
+
+#### Расширенные файлы
+
+- `src/services/joplin.ts` — `getRevisions()`, `getRevisionNote()`, `getNoteResources()`, `getResourceUrl()`
+- `src/types/index.ts` — `JoplinRevision`, `JoplinResource`, `NoteTemplate`
+- `src/components/NoteEditor.tsx` — fullscreen, hotkeys, templates, version history, attachments
+- `src/components/DuplicateDetector.tsx` — AI merge button + preview
+- `src/components/NotebookBuilder.tsx` — ZIP export button
+- `src/App.tsx` — theme toggle button (Sun/Moon) в nav rail
+
+#### Горячие клавиши
+
+| Клавиша | Действие |
+|---------|---------|
+| `Ctrl+S` | Сохранить заметку |
+| `F11` | Полноэкранный режим |
+| `Esc` | Выйти из полноэкранного режима |
+| `Ctrl+P` | Переключить Editor ↔ Preview |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Drag & drop перетаскивание заметок между блокнотами
-- [ ] Встроенный просмотр изображений из заметок
-- [ ] Экспорт нескольких заметок в ZIP
-- [ ] Шаблоны заметок
-- [ ] История версий заметки через Joplin revisions API
-- [ ] Горячие клавиши (Ctrl+S save, Ctrl+P preview...)
-- [ ] Полноэкранный режим редактора
-- [ ] Тёмная/светлая тема (переключатель)
 - [ ] Синхронизация настроек через Tauri file system
-- [ ] Поддержка вложений (attachments)
-- [ ] Слияние двух дублирующих заметок в одну через AI
-- [ ] Экспорт всего агрегатора в ZIP-архив
+- [ ] Поиск по вложениям
+- [ ] Массовое добавление тегов к выбранным заметкам
+- [ ] Статистика по коллекции (топ теги, размер, активность)
