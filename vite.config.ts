@@ -9,7 +9,7 @@ export default defineConfig({
   ],
   clearScreen: false,
   server: {
-    port: 1420,
+    port: 3000,
     strictPort: true,
     host: '0.0.0.0',
     allowedHosts: true,
