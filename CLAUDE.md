@@ -705,6 +705,23 @@ Sidebar: выбрать блокнот
 
 ---
 
+### Этап 22 — Code review: Collection Statistics (StatsView)
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Исправлено (6 проблем)
+
+| Файл | Проблема | Исправление |
+|------|---------|------------|
+| `StatsView.tsx` | `n.body.split(...)` / `n.body.length` — краш если body null | Хелпер `wordCount(body)` + `(body ?? '')` — везде в useMemo |
+| `StatsView.tsx` | `stats.largest[0].body.split(...)` пересчитывается каждый рендер в `.map()` | Pre-computed `_words` в useMemo; `largestMaxWords` — отдельное поле |
+| `StatsView.tsx` | Activity bar: `Math.max(2, ...)` для дней с count=0 → 2px столбик, хотя активности нет | `d.count > 0 ? Math.max(2, ...) : 1` — пустые дни 1px фон |
+| `StatsView.tsx` | `tagStats`: `tags.slice(0, 8)` до подсчёта → топ-8 по первым тегам, а не по использованию | Сначала считаем все теги, сортируем, затем `slice(0, 8)` |
+| `StatsView.tsx` | `key={nb.name}` в notebookStats → коллизия если два блокнота с одним именем | Добавлено `id` в stat-объект; `key={nb.id}` |
+| `StatsView.tsx` | `avgWords` вычислялся вне useMemo → пересчёт каждый рендер | Перенесён внутрь useMemo, возвращается как `stats.avgWords` |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)

@@ -18,14 +18,17 @@ export function StatsView() {
   const { notes, notebooks, tags } = useStore();
 
   const stats = useMemo(() => {
-    const totalWords = notes.reduce((sum, n) => sum + n.body.split(/\s+/).filter(Boolean).length, 0);
-    const totalChars = notes.reduce((sum, n) => sum + n.body.length, 0);
+    const wordCount = (body: string | null | undefined) => (body ?? '').split(/\s+/).filter(Boolean).length;
+
+    const totalWords = notes.reduce((sum, n) => sum + wordCount(n.body), 0);
+    const totalChars = notes.reduce((sum, n) => sum + (n.body ?? '').length, 0);
+    const avgWords = notes.length > 0 ? Math.round(totalWords / notes.length) : 0;
     const todos = notes.filter(n => n.is_todo === 1);
     const doneTodos = todos.filter(n => n.todo_completed);
 
     // Notes per notebook
-    const notebookMap: Record<string, { name: string; count: number }> = {};
-    for (const nb of notebooks) notebookMap[nb.id] = { name: nb.title, count: 0 };
+    const notebookMap: Record<string, { id: string; name: string; count: number }> = {};
+    for (const nb of notebooks) notebookMap[nb.id] = { id: nb.id, name: nb.title, count: 0 };
     for (const n of notes) {
       if (n.parent_id && notebookMap[n.parent_id]) notebookMap[n.parent_id].count++;
     }
@@ -34,10 +37,12 @@ export function StatsView() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
 
-    // Largest notes
+    // Largest notes — sort by body length, pre-compute word counts
     const largest = [...notes]
-      .sort((a, b) => b.body.length - a.body.length)
-      .slice(0, 5);
+      .sort((a, b) => (b.body ?? '').length - (a.body ?? '').length)
+      .slice(0, 5)
+      .map(n => ({ ...n, _words: wordCount(n.body) }));
+    const largestMaxWords = largest[0]?._words ?? 1;
 
     // Activity last 30 days (notes updated)
     const now = Date.now();
@@ -56,17 +61,17 @@ export function StatsView() {
     });
     const maxActivity = Math.max(...activityDays.map(d => d.count), 1);
 
-    // Tag usage: count notes that carry each tag (via note.tags array if available)
-    const tagStats = tags.slice(0, 8).map(t => ({
-      name: t.title,
-      count: notes.filter(n => n.tags?.some(nt => nt.id === t.id)).length,
-    }));
-    tagStats.sort((a, b) => b.count - a.count);
+    // Tag usage: count all tags first, then take top 8
+    const tagStats = tags
+      .map(t => ({
+        name: t.title,
+        count: notes.filter(n => n.tags?.some(nt => nt.id === t.id)).length,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
 
-    return { totalWords, totalChars, todos, doneTodos, notebookStats, largest, activityDays, maxActivity, tagStats };
+    return { totalWords, totalChars, avgWords, todos, doneTodos, notebookStats, largest, largestMaxWords, activityDays, maxActivity, tagStats };
   }, [notes, notebooks, tags]);
-
-  const avgWords = notes.length > 0 ? Math.round(stats.totalWords / notes.length) : 0;
 
   return (
     <div className="h-full overflow-y-auto bg-gray-950 p-6">
@@ -99,7 +104,7 @@ export function StatsView() {
           </h2>
           <div className="flex items-end gap-1 h-20">
             {stats.activityDays.map(d => {
-              const h = stats.maxActivity > 0 ? Math.max(2, Math.round((d.count / stats.maxActivity) * 72)) : 2;
+              const h = d.count > 0 ? Math.max(2, Math.round((d.count / stats.maxActivity) * 72)) : 1;
               return (
                 <div
                   key={d.day}
@@ -121,7 +126,7 @@ export function StatsView() {
             <Award className="w-4 h-4 text-yellow-400" /> Highlights
           </h2>
           {[
-            { label: 'Avg. words per note', value: avgWords.toLocaleString() },
+            { label: 'Avg. words per note', value: stats.avgWords.toLocaleString() },
             { label: 'Total characters', value: stats.totalChars.toLocaleString() },
             { label: 'To-dos total', value: stats.todos.length },
             { label: 'To-dos completed', value: `${stats.doneTodos.length} / ${stats.todos.length}` },
@@ -144,7 +149,7 @@ export function StatsView() {
             </h2>
             <div className="space-y-2">
               {stats.notebookStats.map(nb => (
-                <div key={nb.name}>
+                <div key={nb.id}>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-gray-300 truncate">{nb.name}</span>
                   </div>
@@ -161,18 +166,15 @@ export function StatsView() {
             <FileText className="w-4 h-4 text-orange-400" /> Largest Notes
           </h2>
           <div className="space-y-2">
-            {stats.largest.map(n => {
-              const words = n.body.split(/\s+/).filter(Boolean).length;
-              return (
-                <div key={n.id}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-300 truncate max-w-[70%]">{n.title || 'Untitled'}</span>
-                    <span className="text-gray-500">{words} words</span>
-                  </div>
-                  <Bar value={words} max={stats.largest[0].body.split(/\s+/).filter(Boolean).length} color="bg-orange-500" />
+            {stats.largest.map(n => (
+              <div key={n.id}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-300 truncate max-w-[70%]">{n.title || 'Untitled'}</span>
+                  <span className="text-gray-500">{n._words} words</span>
                 </div>
-              );
-            })}
+                <Bar value={n._words} max={stats.largestMaxWords} color="bg-orange-500" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
