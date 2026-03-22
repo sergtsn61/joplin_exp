@@ -890,12 +890,57 @@ Sidebar: выбрать блокнот
 
 ---
 
+### Этап 27 — UX Пакет A: Критичный UX
+**Статус:** ✅ Завершён
+**Коммит:** `afd23a5`
+**Дата:** 2026-03-22
+
+| Изменение | Файл | Детали |
+|-----------|------|--------|
+| Overflow `...` меню в тулбаре | `NoteEditor.tsx` | History и Templates скрыты в `MoreHorizontal` dropdown; Delete перенесён туда же |
+| Теги: max 2 + `+N` бейдж | `NoteEditor.tsx` | Показываются только на `lg+` экранах |
+| Escape закрывает дропдауны | `NoteEditor.tsx` | Поочерёдно: `...` меню → Export → fullscreen |
+| SettingsModal AI: 3 подсекции | `SettingsModal.tsx` | Connection / Model / Generation с разделителями |
+| Max Tokens: метки диапазона | `SettingsModal.tsx` | `256` и `8192` подписаны |
+| Escape закрывает модалы | `SettingsModal.tsx`, `VersionHistory.tsx`, `NoteTemplates.tsx` | `useEffect` + keydown listener |
+
+---
+
+### Этап 28 — UX Пакет B: Комфорт
+**Статус:** ✅ Завершён
+**Коммит:** `290b612`
+**Дата:** 2026-03-22
+
+| Изменение | Файл | Детали |
+|-----------|------|--------|
+| Resizable AIPanel | `App.tsx` + `AIPanel.tsx` | Drag handle (1px) между редактором и AI панелью; ширина 240–600px; `cursor: col-resize` |
+| Баннер multi-select режима | `NoteList.tsx` | Показывается сразу при входе в режим; кнопки All / None; Tag picker в баннере |
+| Escape выходит из multi-select | `NoteList.tsx` | `useEffect` + keydown; подсказка на кнопке X |
+| Retry в NotebookCompiler | `NotebookCompiler.tsx` | Кнопка `↺ Retry` на баннере ошибки; `AlertCircle` иконка |
+
+---
+
+### Этап 29 — UX Пакет C: Полировка
+**Статус:** ✅ Завершён
+**Коммит:** `87f71ca`
+**Дата:** 2026-03-22
+
+| Изменение | Файл | Детали |
+|-----------|------|--------|
+| Бейдж счётчика вложений | `NoteEditor.tsx` | Синий круг `-top-1 -right-1` на кнопке Paperclip; число грузится через `getNoteResources` при смене заметки |
+| Hotkeys overlay | `NoteEditor.tsx` | Кнопка `⌨` в статусбаре + клавиша `?`; таблица шорткатов в модале; Esc/клик снаружи закрывает |
+| `?` игнорирует input/textarea | `NoteEditor.tsx` | Проверка `e.target.tagName` перед открытием оверлея |
+| Skeleton loading | `NoteList.tsx` | 7 карточек `animate-pulse` с разной шириной строк вместо спиннера |
+| Aria-labels: nav rail | `App.tsx` | `aria-label` + `aria-current="page"` + `aria-expanded` |
+| Aria-labels: Sidebar | `Sidebar.tsx` | New note, Disconnect |
+| Aria-labels: NoteList | `NoteList.tsx` | Сортировочные кнопки с описанием поля и направления |
+| Aria-labels: NoteEditor | `NoteEditor.tsx` | Attachment, More, Fullscreen, Hotkeys кнопки |
+
+---
+
 ## Следующие шаги (roadmap)
 
 - [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)
 - [ ] Inline тег-редактор заметки (добавить/убрать теги без Settings)
 - [ ] Массовое удаление / перемещение заметок
 - [ ] Экспорт статистики в CSV
-- [ ] **[UX Пакет A]** Overflow меню в тулбаре + Escape для модалов + SettingsModal scroll
-- [ ] **[UX Пакет B]** Resizable panels + multi-select баннер + Retry в компиляторе
-- [ ] **[UX Пакет C]** Счётчик вложений + Hotkeys overlay + Skeleton loading + Aria-labels
