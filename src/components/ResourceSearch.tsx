@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Image, FileText, Film, Music, Archive, Download, Loader2 } from 'lucide-react';
+import { Search, Image, FileText, Film, Music, Archive, Download, Loader2, X } from 'lucide-react';
 import { joplinService } from '../services/joplin';
 import type { JoplinResource } from '../types';
 
@@ -11,27 +11,38 @@ function getMimeIcon(mime: string) {
   return FileText;
 }
 
-function formatSize(bytes: number): string {
+function formatSize(bytes: number | undefined | null): string {
+  if (!bytes || bytes < 0) return '0 B';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function getDisplayName(res: JoplinResource): string {
+  if (res.title) return res.title;
+  if (res.file_extension) return `file.${res.file_extension}`;
+  return 'Untitled';
+}
+
+interface Preview { url: string; mime: string }
+
 export function ResourceSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<JoplinResource[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewMime, setPreviewMime] = useState('');
+  const [lastQuery, setLastQuery] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const q = query.trim();
+    if (!q) return;
     setLoading(true);
-    setSearched(true);
+    setResults([]);
+    setPreview(null);
+    setLastQuery(q);
     try {
-      const res = await joplinService.searchResources(query.trim());
+      const res = await joplinService.searchResources(q);
       setResults(res);
     } catch {
       setResults([]);
@@ -67,14 +78,23 @@ export function ResourceSearch() {
       </form>
 
       {/* Preview */}
-      {previewUrl && (
+      {preview && (
         <div className="mb-4 bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
-          {previewMime.startsWith('image/') ? (
-            <img src={previewUrl} alt="" className="max-h-48 mx-auto object-contain p-2" />
-          ) : previewMime.startsWith('video/') ? (
-            <video src={previewUrl} controls className="w-full max-h-48" />
-          ) : previewMime.startsWith('audio/') ? (
-            <audio src={previewUrl} controls className="w-full p-3" />
+          <div className="flex justify-end p-1">
+            <button
+              onClick={() => setPreview(null)}
+              className="p-1 text-gray-500 hover:text-gray-300 rounded transition-colors"
+              title="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {preview.mime.startsWith('image/') ? (
+            <img src={preview.url} alt="" className="max-h-48 mx-auto object-contain px-2 pb-2" />
+          ) : preview.mime.startsWith('video/') ? (
+            <video src={preview.url} controls className="w-full max-h-48" />
+          ) : preview.mime.startsWith('audio/') ? (
+            <audio src={preview.url} controls className="w-full p-3" />
           ) : null}
         </div>
       )}
@@ -86,10 +106,10 @@ export function ResourceSearch() {
             <Loader2 className="w-6 h-6 animate-spin mr-2" /> Searching...
           </div>
         )}
-        {!loading && searched && results.length === 0 && (
-          <div className="text-center text-gray-500 py-12">No attachments found for "{query}"</div>
+        {!loading && lastQuery !== null && results.length === 0 && (
+          <div className="text-center text-gray-500 py-12">No attachments found for "{lastQuery}"</div>
         )}
-        {!loading && !searched && (
+        {!loading && lastQuery === null && (
           <div className="text-center text-gray-600 py-12 text-sm">Enter a search term to find attachments</div>
         )}
         {!loading && results.length > 0 && (
@@ -106,16 +126,13 @@ export function ResourceSearch() {
                 >
                   <Icon className="w-5 h-5 text-gray-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{res.title || `file.${res.file_extension}`}</p>
+                    <p className="text-sm font-medium truncate">{getDisplayName(res)}</p>
                     <p className="text-xs text-gray-500">{res.mime} · {formatSize(res.size)}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     {isPreviewable && (
                       <button
-                        onClick={() => {
-                          setPreviewUrl(url);
-                          setPreviewMime(res.mime);
-                        }}
+                        onClick={() => setPreview({ url, mime: res.mime })}
                         className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 transition-colors"
                       >
                         Preview
@@ -123,7 +140,7 @@ export function ResourceSearch() {
                     )}
                     <a
                       href={url}
-                      download={res.title}
+                      download={getDisplayName(res)}
                       className="flex items-center gap-1 text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 transition-colors"
                     >
                       <Download className="w-3 h-3" />
