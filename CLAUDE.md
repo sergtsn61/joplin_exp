@@ -524,10 +524,39 @@ Running `target/debug/app`
 
 ---
 
+---
+
+### Этап 15 — Остаток roadmap
+**Статус:** ✅ Завершён
+**Дата:** 2026-03-22
+
+#### Реализовано
+
+| Фича | Файлы | Описание |
+|------|-------|---------|
+| **Drag & drop** | `NoteList.tsx` + `Sidebar.tsx` | Тащи заметку на блокнот → `updateNote(parent_id)`. Блокнот подсвечивается зелёным при наведении |
+| **Массовые теги** | `NoteList.tsx` | Кнопка ✔✔ в шапке → multi-select чекбоксы → "Add Tag" dropdown → `bulkAddTag()` |
+| **Статистика** | `StatsView.tsx` | Вкладка Stats: 4 summary cards, activity bars (30 дней), notebook/note size charts |
+| **Поиск вложений** | `ResourceSearch.tsx` | Вкладка Attachments: поиск по имени через Joplin search API, превью медиа |
+| **Экспорт/импорт настроек** | `SettingsModal.tsx` | Кнопки Export JSON / Import JSON в футере Settings |
+
+#### Новые файлы
+
+| Файл | Назначение |
+|------|-----------|
+| `src/components/StatsView.tsx` | Статистика коллекции |
+| `src/components/ResourceSearch.tsx` | Глобальный поиск вложений |
+
+#### Навигация (итого 7 вкладок)
+
+```
+[Notes] [Aggregate] [Duplicates] [Topics] [Builder] [Stats] [Attachments]
+                                                       + [☀/🌙] [Instances]
+```
+
 ## Следующие шаги (roadmap)
 
-- [ ] Drag & drop перетаскивание заметок между блокнотами
-- [ ] Синхронизация настроек через Tauri file system
-- [ ] Поиск по вложениям
-- [ ] Массовое добавление тегов к выбранным заметкам
-- [ ] Статистика по коллекции (топ теги, размер, активность)
+- [ ] Sync через Tauri FS (нативный файл настроек вне localStorage)
+- [ ] Inline тег-редактор заметки (добавить/убрать теги без Settings)
+- [ ] Массовое удаление / перемещение заметок
+- [ ] Экспорт статистики в CSV

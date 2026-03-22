@@ -59,6 +59,8 @@ interface AppState {
   updateNote: (id: string, changes: Partial<JoplinNote>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   saveCurrentNote: (body: string) => Promise<void>;
+  moveNoteToNotebook: (noteId: string, notebookId: string) => Promise<void>;
+  bulkAddTag: (noteIds: string[], tagId: string) => Promise<void>;
 
   // Actions - UI
   setViewMode: (mode: ViewMode) => void;
@@ -259,6 +261,21 @@ export const useStore = create<AppState>()(
         } catch {
           set({ isSaving: false });
         }
+      },
+
+      moveNoteToNotebook: async (noteId, notebookId) => {
+        try {
+          await joplinService.updateNote(noteId, { parent_id: notebookId });
+          set(state => ({
+            notes: state.notes.map(n => n.id === noteId ? { ...n, parent_id: notebookId } : n),
+          }));
+        } catch { /* ignore */ }
+      },
+
+      bulkAddTag: async (noteIds, tagId) => {
+        try {
+          await Promise.all(noteIds.map(id => joplinService.addTagToNote(id, tagId)));
+        } catch { /* ignore */ }
       },
 
       // UI

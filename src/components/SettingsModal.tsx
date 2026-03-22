@@ -10,6 +10,8 @@ import {
   RefreshCw,
   CheckCircle,
   AlertCircle,
+  Upload,
+  Download,
 } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -243,13 +245,47 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-800">
+        <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-gray-800">
+          {/* Export settings */}
+          <button
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = 'joplin-ai-settings.json'; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-400 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            title="Export settings to JSON"
+          >
+            <Download className="w-3.5 h-3.5" /> Export
+          </button>
+          {/* Import settings */}
+          <label className="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-400 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors cursor-pointer" title="Import settings from JSON">
+            <Upload className="w-3.5 h-3.5" /> Import
+            <input
+              type="file" accept=".json" className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = ev => {
+                  try {
+                    const parsed = JSON.parse(ev.target?.result as string);
+                    updateSettings(parsed);
+                  } catch { alert('Invalid settings file'); }
+                };
+                reader.readAsText(file);
+              }}
+            />
+          </label>
+          <div className="flex-1" />
           <button onClick={onClose}
-            className="flex-1 px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+            className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
             Cancel
           </button>
           <button onClick={handleSave}
-            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors">
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors">
             Save Settings
           </button>
         </div>

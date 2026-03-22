@@ -161,7 +161,7 @@ export interface BuildTarget {
   notes: AggregatedNote[];
 }
 
-export type AppView = 'editor' | 'aggregator' | 'duplicates' | 'topics' | 'builder';
+export type AppView = 'editor' | 'aggregator' | 'duplicates' | 'topics' | 'builder' | 'stats' | 'resources';
 
 // Joplin revision (version history)
 export interface JoplinRevision {

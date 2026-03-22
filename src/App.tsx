@@ -10,6 +10,8 @@ import { AggregatorView } from './components/AggregatorView';
 import { DuplicateDetector } from './components/DuplicateDetector';
 import { TopicClassifier } from './components/TopicClassifier';
 import { NotebookBuilder } from './components/NotebookBuilder';
+import { StatsView } from './components/StatsView';
+import { ResourceSearch } from './components/ResourceSearch';
 import {
   PanelLeft,
   Bot,
@@ -21,15 +23,19 @@ import {
   BookOpen,
   Sun,
   Moon,
+  BarChart2,
+  Paperclip,
 } from 'lucide-react';
 import type { AppView } from './types';
 
 const NAV_ITEMS: { view: AppView; icon: React.ReactNode; label: string }[] = [
-  { view: 'editor',     icon: <FileText className="w-4 h-4" />,  label: 'Notes' },
-  { view: 'aggregator', icon: <Layers className="w-4 h-4" />,    label: 'Aggregate' },
-  { view: 'duplicates', icon: <Copy className="w-4 h-4" />,      label: 'Duplicates' },
-  { view: 'topics',     icon: <Tag className="w-4 h-4" />,       label: 'Topics' },
-  { view: 'builder',    icon: <BookOpen className="w-4 h-4" />,  label: 'Builder' },
+  { view: 'editor',     icon: <FileText className="w-4 h-4" />,   label: 'Notes' },
+  { view: 'aggregator', icon: <Layers className="w-4 h-4" />,     label: 'Aggregate' },
+  { view: 'duplicates', icon: <Copy className="w-4 h-4" />,       label: 'Duplicates' },
+  { view: 'topics',     icon: <Tag className="w-4 h-4" />,        label: 'Topics' },
+  { view: 'builder',    icon: <BookOpen className="w-4 h-4" />,   label: 'Builder' },
+  { view: 'stats',      icon: <BarChart2 className="w-4 h-4" />,  label: 'Stats' },
+  { view: 'resources',  icon: <Paperclip className="w-4 h-4" />,  label: 'Attachments' },
 ];
 
 function App() {
@@ -148,6 +154,10 @@ function App() {
         <div className="flex-1 overflow-hidden"><TopicClassifier /></div>
       ) : appView === 'builder' ? (
         <div className="flex-1 overflow-hidden"><NotebookBuilder /></div>
+      ) : appView === 'stats' ? (
+        <div className="flex-1 overflow-hidden"><StatsView /></div>
+      ) : appView === 'resources' ? (
+        <div className="flex-1 overflow-hidden"><ResourceSearch /></div>
       ) : null}
     </div>
   );

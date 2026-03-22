@@ -20,10 +20,12 @@ interface NotebookItemProps {
   level: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onDrop: (noteId: string, notebookId: string) => void;
 }
 
-function NotebookItem({ notebook, level, selectedId, onSelect }: NotebookItemProps) {
+function NotebookItem({ notebook, level, selectedId, onSelect, onDrop }: NotebookItemProps) {
   const [expanded, setExpanded] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
   const hasChildren = (notebook.children?.length || 0) > 0;
   const isSelected = selectedId === notebook.id;
 
@@ -34,19 +36,25 @@ function NotebookItem({ notebook, level, selectedId, onSelect }: NotebookItemPro
           onSelect(isSelected ? '' : notebook.id);
           if (hasChildren) setExpanded(!expanded);
         }}
+        onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setIsDragOver(false);
+          const noteId = e.dataTransfer.getData('noteId');
+          if (noteId) onDrop(noteId, notebook.id);
+        }}
         className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm text-left transition-colors ${
-          isSelected
+          isDragOver
+            ? 'bg-green-600/30 border border-green-600 text-green-300'
+            : isSelected
             ? 'bg-blue-600 text-white'
             : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
         }`}
         style={{ paddingLeft: `${8 + level * 16}px` }}
       >
         {hasChildren ? (
-          expanded ? (
-            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-          ) : (
-            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-          )
+          expanded ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />
         ) : (
           <span className="w-3.5" />
         )}
@@ -62,6 +70,7 @@ function NotebookItem({ notebook, level, selectedId, onSelect }: NotebookItemPro
               level={level + 1}
               selectedId={selectedId}
               onSelect={onSelect}
+              onDrop={onDrop}
             />
           ))}
         </div>
@@ -80,6 +89,7 @@ export function Sidebar() {
     disconnect,
     notes,
     isLoadingNotes,
+    moveNoteToNotebook,
   } = useStore();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -171,6 +181,7 @@ export function Sidebar() {
                   level={0}
                   selectedId={filter.notebookId}
                   onSelect={handleNotebookSelect}
+                  onDrop={moveNoteToNotebook}
                 />
               ))}
             </div>

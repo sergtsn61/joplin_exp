@@ -198,6 +198,15 @@ class JoplinService {
     return data.items || [];
   }
 
+  // Search attachments globally
+  async searchResources(query: string): Promise<JoplinResource[]> {
+    this.ensureConnected();
+    const { data } = await this.client!.get('/search', {
+      params: { query, type: 'resource', fields: 'id,title,mime,size,file_extension', limit: 50 },
+    });
+    return data.items || [];
+  }
+
   // Revisions (version history)
   async getRevisions(noteId: string): Promise<JoplinRevision[]> {
     this.ensureConnected();
