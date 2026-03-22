@@ -127,7 +127,7 @@ function App() {
             {sidebarOpen && <Sidebar />}
           </div>
 
-          <div className="w-64 shrink-0 overflow-hidden">
+          <div className="w-80 shrink-0 overflow-hidden">
             <NoteList />
           </div>
 
