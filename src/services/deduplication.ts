@@ -1,5 +1,4 @@
-import type { AggregatedNote, DuplicateGroup, DuplicateMethod } from '../types';
-import type { AIConfig } from '../types';
+import type { AggregatedNote, DuplicateGroup, AIConfig } from '../types';
 import { aiService } from './ai';
 
 // Simple hash function (djb2) — no crypto API needed
@@ -48,7 +47,7 @@ export function findByHash(notes: AggregatedNote[]): DuplicateGroup[] {
   const groups = new Map<string, AggregatedNote[]>();
 
   for (const note of notes) {
-    const hash = hashString(normalizeBody(note.body));
+    const hash = hashString(normalizeBody(note.body ?? ''));
     if (!groups.has(hash)) groups.set(hash, []);
     groups.get(hash)!.push(note);
   }
@@ -57,7 +56,7 @@ export function findByHash(notes: AggregatedNote[]): DuplicateGroup[] {
   let idx = 0;
   for (const [, group] of groups) {
     if (group.length > 1) {
-      result.push({ id: `hash-${idx++}`, method: 'hash' as DuplicateMethod, notes: group, similarity: 1 });
+      result.push({ id: `hash-${idx++}`, method: 'hash', notes: group, similarity: 1 });
     }
   }
   return result;
@@ -69,23 +68,25 @@ export function findByTitle(notes: AggregatedNote[], threshold = 0.85): Duplicat
   let idx = 0;
 
   for (let i = 0; i < notes.length; i++) {
-    if (used.has(notes[i].id)) continue;
+    const keyI = `${notes[i].instanceId}:${notes[i].id}`;
+    if (used.has(keyI)) continue;
     const group: AggregatedNote[] = [notes[i]];
     let minSim = 1;
 
     for (let j = i + 1; j < notes.length; j++) {
-      if (used.has(notes[j].id)) continue;
+      const keyJ = `${notes[j].instanceId}:${notes[j].id}`;
+      if (used.has(keyJ)) continue;
       const sim = titleSimilarity(notes[i].title, notes[j].title);
       if (sim >= threshold) {
         group.push(notes[j]);
-        used.add(notes[j].id);
+        used.add(keyJ);
         minSim = Math.min(minSim, sim);
       }
     }
 
     if (group.length > 1) {
-      used.add(notes[i].id);
-      groups.push({ id: `title-${idx++}`, method: 'title' as DuplicateMethod, notes: group, similarity: minSim });
+      used.add(keyI);
+      groups.push({ id: `title-${idx++}`, method: 'title', notes: group, similarity: minSim });
     }
   }
 
@@ -136,7 +137,7 @@ Example: [["id1","id2"],["id3","id4","id5"]]`;
             .map(id => notes.find(n => n.id === id))
             .filter(Boolean) as AggregatedNote[];
           if (groupNotes.length > 1) {
-            groups.push({ id: `ai-${idx++}`, method: 'ai' as DuplicateMethod, notes: groupNotes });
+            groups.push({ id: `ai-${idx++}`, method: 'ai', notes: groupNotes });
           }
         }
       }
@@ -155,6 +156,8 @@ export function deduplicateGroups(groups: DuplicateGroup[]): DuplicateGroup[] {
   // Merge groups that share notes (transitive closure)
   const noteToGroup = new Map<string, number>();
   const merged: DuplicateGroup[] = [];
+  // Track which indices were absorbed into another group
+  const absorbed = new Set<number>();
 
   for (const group of groups) {
     const existingIdxSet = new Set<number>();
@@ -165,25 +168,41 @@ export function deduplicateGroups(groups: DuplicateGroup[]): DuplicateGroup[] {
 
     if (existingIdxSet.size === 0) {
       const newIdx = merged.length;
-      merged.push({ ...group });
+      merged.push({ ...group, notes: [...group.notes] });
       for (const note of group.notes) {
         noteToGroup.set(`${note.instanceId}:${note.id}`, newIdx);
       }
     } else {
-      // Merge into first existing group
+      // Merge all overlapping groups into the first one
       const targetIdx = [...existingIdxSet][0];
-      const existing = merged[targetIdx];
-      const existingIds = new Set(existing.notes.map(n => `${n.instanceId}:${n.id}`));
+      const target = merged[targetIdx];
+      const targetIds = new Set(target.notes.map(n => `${n.instanceId}:${n.id}`));
+
+      // Pull notes from all other overlapping groups into target, mark them absorbed
+      for (const otherIdx of existingIdxSet) {
+        if (otherIdx === targetIdx) continue;
+        for (const note of merged[otherIdx].notes) {
+          const key = `${note.instanceId}:${note.id}`;
+          if (!targetIds.has(key)) {
+            target.notes.push(note);
+            targetIds.add(key);
+            noteToGroup.set(key, targetIdx);
+          }
+        }
+        absorbed.add(otherIdx);
+      }
+
+      // Add notes from the current group
       for (const note of group.notes) {
         const key = `${note.instanceId}:${note.id}`;
-        if (!existingIds.has(key)) {
-          existing.notes.push(note);
-          existingIds.add(key);
+        if (!targetIds.has(key)) {
+          target.notes.push(note);
+          targetIds.add(key);
           noteToGroup.set(key, targetIdx);
         }
       }
     }
   }
 
-  return merged;
+  return merged.filter((_, i) => !absorbed.has(i));
 }

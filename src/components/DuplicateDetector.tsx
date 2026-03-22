@@ -5,7 +5,7 @@ import { findByHash, findByTitle, findByAI, deduplicateGroups } from '../service
 import { aiService } from '../services/ai';
 import { joplinService } from '../services/joplin';
 import { useStore } from '../store';
-import type { DuplicateGroup, DuplicateMethod, AggregatedNote } from '../types';
+import type { DuplicateGroup, DuplicateMethod, AggregatedNote, AIConfig } from '../types';
 
 const METHOD_LABELS: Record<DuplicateMethod, string> = {
   hash: 'Exact copy',
@@ -166,10 +166,11 @@ export function DuplicateDetector() {
             onDeleteAll={() => handleDeleteAll(group)}
             settings={settings}
             onMerged={(groupId, mergedBody) => {
-              // Keep first note as base, update its body, delete rest
-              const [keep, ...rest] = group.notes;
-              addAggregatedNote({ ...keep, body: mergedBody, title: keep.title + ' (merged)' });
-              for (const n of [keep, ...rest]) deleteNoteFromAggregated(n.instanceId, n.id);
+              const [keep] = group.notes;
+              // Delete originals first, then add merged with a new ID
+              // so deleteNoteFromAggregated doesn't accidentally remove the merged note
+              for (const n of group.notes) deleteNoteFromAggregated(n.instanceId, n.id);
+              addAggregatedNote({ ...keep, id: crypto.randomUUID(), body: mergedBody, title: keep.title + ' (merged)' });
               setResolved(r => new Set([...r, groupId]));
             }}
           />
@@ -193,24 +194,26 @@ function DuplicateGroupCard({
   onToggle: () => void;
   onKeep: (note: AggregatedNote) => void;
   onDeleteAll: () => void;
-  settings: { ai: import('../types').AIConfig };
+  settings: { ai: AIConfig };
   onMerged: (groupId: string, mergedBody: string) => void;
 }) {
   const { isConnected } = useStore();
   const [isMerging, setIsMerging] = useState(false);
   const [mergedPreview, setMergedPreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedTitle, setSavedTitle] = useState<string | null>(null);
+  const [savedOk, setSavedOk] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleSaveAsNew = async () => {
     if (!mergedPreview) return;
     setIsSaving(true);
+    setSaveError('');
     const title = group.notes[0].title + ' (merged)';
     try {
       await joplinService.createNote({ title, body: mergedPreview });
-      setSavedTitle(title);
-    } catch {
-      setSavedTitle('Error saving note');
+      setSavedOk(true);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save note');
     }
     setIsSaving(false);
   };
@@ -218,7 +221,9 @@ function DuplicateGroupCard({
   const handleAIMerge = async () => {
     setIsMerging(true);
     setMergedPreview(null);
-    const prompt = `You are a note merging assistant. Merge the following duplicate notes into one comprehensive, well-structured note. Keep all unique information. Remove redundant parts. Output ONLY the merged note body in Markdown, no explanations.\n\n${group.notes.map((n, i) => `=== Note ${i + 1}: ${n.title} ===\n${n.body}`).join('\n\n')}`;
+    setSavedOk(false);
+    setSaveError('');
+    const prompt = `You are a note merging assistant. Merge the following duplicate notes into one comprehensive, well-structured note. Keep all unique information. Remove redundant parts. Output ONLY the merged note body in Markdown, no explanations.\n\n${group.notes.map((n, i) => `=== Note ${i + 1}: ${n.title} ===\n${n.body ?? ''}`).join('\n\n')}`;
     let result = '';
     try {
       await aiService.chat(
@@ -227,8 +232,8 @@ function DuplicateGroupCard({
         (chunk) => { result += chunk; }
       );
       setMergedPreview(result);
-    } catch {
-      setMergedPreview('Error: AI failed to merge notes');
+    } catch (e) {
+      setMergedPreview(`Error: ${e instanceof Error ? e.message : 'AI failed to merge notes'}`);
     }
     setIsMerging(false);
   };
@@ -258,7 +263,7 @@ function DuplicateGroupCard({
                   <p className="text-sm font-medium truncate">{note.title}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{note.instanceName}</p>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                    {note.body.substring(0, 120)}
+                    {(note.body ?? '').substring(0, 120)}
                   </p>
                 </div>
                 <button
@@ -293,9 +298,8 @@ function DuplicateGroupCard({
               <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto">
                 {mergedPreview}
               </pre>
-              {savedTitle && (
-                <p className="text-xs text-green-400">✓ Saved as: {savedTitle}</p>
-              )}
+              {savedOk && <p className="text-xs text-green-400">✓ Saved to Joplin</p>}
+              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => { onMerged(group.id, mergedPreview); setMergedPreview(null); }}
@@ -306,7 +310,7 @@ function DuplicateGroupCard({
                 {isConnected && (
                   <button
                     onClick={handleSaveAsNew}
-                    disabled={isSaving || !!savedTitle}
+                    disabled={isSaving || savedOk}
                     className="flex-1 flex items-center justify-center gap-1 py-1 bg-green-800 hover:bg-green-700 disabled:opacity-50 rounded text-xs transition-colors"
                   >
                     {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <FilePlus className="w-3 h-3" />}
@@ -314,7 +318,7 @@ function DuplicateGroupCard({
                   </button>
                 )}
                 <button
-                  onClick={() => { setMergedPreview(null); setSavedTitle(null); }}
+                  onClick={() => { setMergedPreview(null); setSavedOk(false); setSaveError(''); }}
                   className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors"
                 >
                   Discard
